@@ -1,0 +1,54 @@
+import axios from 'axios';
+import type { AuthResponse, Repository } from '../types';
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Attach JWT token to every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Handle token expiry — redirect to login on 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Auth endpoints
+export const googleLogin = (credential: string): Promise<AuthResponse> =>
+  api.post('/auth/google/', { credential }).then((res) => res.data);
+
+export const getCurrentUser = () =>
+  api.get('/auth/me/').then((res) => res.data);
+
+// Repository endpoints
+export const analyseRepository = (url: string): Promise<Repository> =>
+  api.post('/repositories/analyse/', { url }).then((res) => res.data);
+
+export const getRepositories = (): Promise<Repository[]> =>
+  api.get('/repositories/').then((res) => res.data);
+
+export const getRepository = (id: number): Promise<Repository> =>
+  api.get(`/repositories/${id}/`).then((res) => res.data);
+
+// Dashboard endpoint
+export const getDashboardRepository = (id: number): Promise<Repository> =>
+  api.get(`/dashboard/${id}/`).then((res) => res.data);
+
+export default api;
