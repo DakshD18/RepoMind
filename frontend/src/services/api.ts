@@ -24,7 +24,6 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
-      window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -33,6 +32,20 @@ api.interceptors.response.use(
 // Auth endpoints
 export const googleLogin = (credential: string): Promise<AuthResponse> =>
   api.post('/auth/google/', { credential }).then((res) => res.data);
+
+export const githubLogin = (code: string): Promise<AuthResponse> =>
+  api.post('/auth/github/', { code }).then((res) => res.data);
+
+export const emailLogin = (email: string, password: string): Promise<AuthResponse> =>
+  api.post('/auth/login/', { email, password }).then((res) => res.data);
+
+export const emailRegister = (
+  email: string,
+  password: string,
+  firstName?: string,
+  lastName?: string
+): Promise<AuthResponse> =>
+  api.post('/auth/register/', { email, password, first_name: firstName, last_name: lastName }).then((res) => res.data);
 
 export const getCurrentUser = () =>
   api.get('/auth/me/').then((res) => res.data);

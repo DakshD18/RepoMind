@@ -142,31 +142,58 @@ export const LandingPage: React.FC = () => {
               ))}
             </Box>
 
-            {/* Right Action buttons */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* Right Action buttons matching Screenshot #3 */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
               {isAuthenticated ? (
                 <Button
                   onClick={() => navigate('/dashboard')}
                   variant="contained"
                   sx={{
-                    borderRadius: '10px',
+                    borderRadius: '8px',
                     background: 'linear-gradient(135deg, #6c63ff, #5a52e0)',
                     textTransform: 'none',
                     fontWeight: 600,
-                    px: 3,
+                    px: 2.5,
                   }}
                 >
                   Go to Dashboard
                 </Button>
               ) : (
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  theme="filled_black"
-                  size="medium"
-                  text="continue_with"
-                  shape="pill"
-                />
+                <>
+                  <Typography
+                    onClick={() => navigate('/login')}
+                    sx={{
+                      fontSize: '0.875rem',
+                      color: '#a0a0cc',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      transition: 'color 0.2s',
+                      '&:hover': { color: '#ffffff' },
+                    }}
+                  >
+                    Log in
+                  </Typography>
+
+                  <Button
+                    onClick={() => navigate('/login')}
+                    variant="contained"
+                    sx={{
+                      borderRadius: '8px',
+                      background: '#ffffff',
+                      color: '#09090d',
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      px: 2.5,
+                      py: 0.8,
+                      '&:hover': {
+                        background: '#e0e0ff',
+                      },
+                    }}
+                  >
+                    Get Started →
+                  </Button>
+                </>
               )}
             </Box>
           </Box>
