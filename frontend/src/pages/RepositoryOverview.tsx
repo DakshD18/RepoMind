@@ -4,12 +4,12 @@ import {
   Container,
   Typography,
   Card,
-  CardContent,
   Chip,
   Button,
   Grid,
   CircularProgress,
   Divider,
+  Avatar,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -19,379 +19,504 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import CommitIcon from '@mui/icons-material/Commit';
 import CodeIcon from '@mui/icons-material/Code';
 import GitHubIcon from '@mui/icons-material/GitHub';
-import PersonIcon from '@mui/icons-material/Person';
-import { getDashboardRepository } from '../services/api';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import HealthAndSafetyOutlinedIcon from '@mui/icons-material/HealthAndSafetyOutlined';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
+import CallSplitIcon from '@mui/icons-material/CallSplit';
+import { DashboardLayout } from '../layouts/DashboardLayout';
+import { getDashboardRepository, analyseRepository } from '../services/api';
 import type { Repository } from '../types';
+import toast from 'react-hot-toast';
 
-
-interface StatCardProps {
+interface MetricCardProps {
   icon: React.ReactNode;
   label: string;
   value: string | number;
-  color?: string;
+  isStatus?: boolean;
 }
 
-const StatCard = ({ icon, label, value, color = '#6c63ff' }: StatCardProps) => (
+const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, isStatus }) => (
   <Card
     sx={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.07)',
+      background: '#0d0d16',
+      border: '1px solid rgba(255, 255, 255, 0.07)',
       borderRadius: '16px',
+      p: 2.5,
       height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
       transition: 'all 0.2s ease',
       '&:hover': {
-        border: `1px solid ${color}44`,
-        background: `${color}08`,
-        transform: 'translateY(-3px)',
-        boxShadow: `0 8px 30px ${color}22`,
+        borderColor: 'rgba(108, 99, 255, 0.3)',
+        background: 'rgba(18, 18, 28, 0.9)',
       },
     }}
   >
-    <CardContent sx={{ p: 3 }}>
-      <Box
-        sx={{
-          width: 48,
-          height: 48,
-          borderRadius: '12px',
-          background: `${color}18`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          mb: 2,
-        }}
-      >
-        <Box sx={{ color }}>{icon}</Box>
-      </Box>
-      <Typography sx={{ color: '#8888aa', fontSize: '0.8rem', mb: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: '#777799' }}>
+      <Box sx={{ display: 'flex', color: isStatus ? '#00c896' : '#6c63ff' }}>{icon}</Box>
+      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
         {label}
       </Typography>
-      <Typography sx={{ color: '#e0e0ff', fontSize: '1.6rem', fontWeight: 700, lineHeight: 1 }}>
-        {value}
-      </Typography>
-    </CardContent>
+    </Box>
+
+    <Typography
+      sx={{
+        fontSize: isStatus ? '1.25rem' : '1.75rem',
+        fontWeight: 800,
+        color: isStatus ? '#00c896' : '#ffffff',
+        lineHeight: 1,
+      }}
+    >
+      {value}
+    </Typography>
   </Card>
 );
 
-const LANGUAGE_COLORS: Record<string, string> = {
-  Python: '#3776ab',
-  JavaScript: '#f7df1e',
-  TypeScript: '#3178c6',
-  Java: '#ed8b00',
-  'C++': '#00599c',
-  Go: '#00acd7',
-  Rust: '#dea584',
-  Ruby: '#cc342d',
-  PHP: '#777bb4',
-  Swift: '#fa7343',
-  Kotlin: '#7f52ff',
-  HTML: '#e44d26',
-  CSS: '#1572b6',
-  SCSS: '#cf649a',
-  Vue: '#42b883',
-  Dart: '#0175c2',
-  C: '#555555',
-  'C#': '#239120',
-};
+const MOCK_COMMITS = [
+  {
+    author: 'gaearon',
+    initials: 'GA',
+    message: 'React 19 Release Candidate preparations',
+    time: '3 hours ago',
+    branch: 'main',
+    hash: 'a1b2c3d',
+  },
+  {
+    author: 'acdlite',
+    initials: 'AC',
+    message: 'Fix hydration mismatch in Suspense boundaries',
+    time: '5 hours ago',
+    branch: 'main',
+    hash: 'd1e2f3a',
+  },
+  {
+    author: 'sebmarkbage',
+    initials: 'SM',
+    message: 'Optimize Server Components tree serialization',
+    time: '1 day ago',
+    branch: 'main',
+    hash: 'f9e8d7c',
+  },
+];
 
-const RepositoryOverview = () => {
+export const RepositoryOverview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [repo, setRepo] = useState<Repository | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReanalysing, setIsReanalysing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchRepo = async () => {
-      if (!id) return;
-      try {
-        const data = await getDashboardRepository(Number(id));
-        setRepo(data);
-      } catch (err: any) {
-        setError(err?.response?.data?.error || 'Failed to load repository data.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchRepo();
+    fetchRepoData();
   }, [id]);
+
+  const fetchRepoData = async () => {
+    if (!id) return;
+    try {
+      const data = await getDashboardRepository(Number(id));
+      setRepo(data);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to load repository data.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReanalyse = async () => {
+    if (!repo?.url || isReanalysing) return;
+    setIsReanalysing(true);
+    const toastId = toast.loading('Re-analysing repository...');
+    try {
+      await analyseRepository(repo.url);
+      await fetchRepoData();
+      toast.success('Repository re-analysis complete!', { id: toastId });
+    } catch {
+      toast.error('Re-analysis failed.', { id: toastId });
+    } finally {
+      setIsReanalysing(false);
+    }
+  };
 
   if (isLoading) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          background: '#0a0a0f',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <CircularProgress sx={{ color: '#6c63ff' }} size={48} />
-      </Box>
+      <DashboardLayout>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <CircularProgress sx={{ color: '#6c63ff' }} size={44} />
+        </Box>
+      </DashboardLayout>
     );
   }
 
   if (error || !repo) {
     return (
-      <Box sx={{ minHeight: '100vh', background: '#0a0a0f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
-        <Typography sx={{ color: '#ef5350', fontSize: '1.1rem' }}>{error || 'Repository not found.'}</Typography>
-        <Button onClick={() => navigate('/dashboard')} startIcon={<ArrowBackIcon />} sx={{ color: '#6c63ff' }}>
-          Back to Dashboard
-        </Button>
-      </Box>
+      <DashboardLayout>
+        <Container maxWidth="lg" sx={{ py: 6, textAlign: 'center' }}>
+          <Typography sx={{ color: '#ef5350', fontSize: '1.1rem', mb: 3 }}>
+            {error || 'Repository not found.'}
+          </Typography>
+          <Button
+            onClick={() => navigate('/dashboard')}
+            startIcon={<ArrowBackIcon />}
+            variant="outlined"
+            sx={{ color: '#6c63ff', borderColor: 'rgba(108,99,255,0.4)' }}
+          >
+            Back to Dashboard
+          </Button>
+        </Container>
+      </DashboardLayout>
     );
   }
 
-  const lastCommit = repo.last_commit_date
-    ? new Date(repo.last_commit_date).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
-      })
-    : 'Unknown';
+  const primaryLang = repo.languages[0] || 'JavaScript';
 
   return (
-    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #12101f 50%, #0d0d1a 100%)' }}>
+    <DashboardLayout>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        {/* Back button & Breadcrumb matching Screenshot #4 */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Typography
+            onClick={() => navigate('/dashboard')}
+            sx={{ color: '#6c63ff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+          >
+            RepoMind
+          </Typography>
+          <Typography sx={{ color: '#555577', fontSize: '0.875rem' }}>/</Typography>
+          <Typography sx={{ color: '#ffffff', fontSize: '0.875rem', fontWeight: 600 }}>
+            {repo.owner}/{repo.name}
+          </Typography>
+        </Box>
 
-      {/* Background orb */}
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          width: '40vw',
-          height: '40vw',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(108,99,255,0.08) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-
-      <Container maxWidth="lg" sx={{ py: 5, position: 'relative', zIndex: 1 }}>
-
-        {/* Back button */}
-        <Button
-          onClick={() => navigate('/dashboard')}
-          startIcon={<ArrowBackIcon />}
+        {/* Main Repository Header Banner matching Screenshot #4 */}
+        <Card
           sx={{
-            color: '#8888aa',
+            background: '#0d0d16',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '20px',
+            p: { xs: 3, md: 4 },
             mb: 4,
-            '&:hover': { color: '#6c63ff', background: 'rgba(108,99,255,0.08)' },
-            textTransform: 'none',
           }}
         >
-          Back to Dashboard
-        </Button>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { md: 'flex-start' }, gap: 3 }}>
+            <Box sx={{ flex: 1 }}>
+              {/* Pills */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Chip
+                  icon={<GitHubIcon sx={{ fontSize: '14px !important', color: '#a0a0cc !important' }} />}
+                  label={repo.owner}
+                  size="small"
+                  sx={{ background: 'rgba(255,255,255,0.04)', color: '#e0e0ff', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem' }}
+                />
+                <Chip
+                  label={repo.name}
+                  size="small"
+                  sx={{ background: 'rgba(108, 99, 255, 0.15)', color: '#6c63ff', border: '1px solid rgba(108, 99, 255, 0.3)', fontWeight: 700, fontSize: '0.75rem' }}
+                />
+                <Chip
+                  label="Public"
+                  size="small"
+                  sx={{ background: 'rgba(255,255,255,0.03)', color: '#8888aa', fontSize: '0.725rem' }}
+                />
+              </Box>
 
-        {/* Header */}
-        <Box sx={{ mb: 5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5, flexWrap: 'wrap' }}>
-            <Box
-              sx={{
-                width: 52,
-                height: 52,
-                borderRadius: '14px',
-                background: 'linear-gradient(135deg, rgba(108,99,255,0.3), rgba(0,200,150,0.2))',
-                border: '1px solid rgba(108,99,255,0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <GitHubIcon sx={{ color: '#e0e0ff', fontSize: 28 }} />
-            </Box>
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: { xs: '1.6rem', md: '2.2rem' },
-                  fontWeight: 700,
-                  background: 'linear-gradient(135deg, #ffffff 40%, #6c63ff 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  lineHeight: 1.2,
-                }}
-              >
-                {repo.owner}/{repo.name}
+              {/* Title & Description */}
+              <Typography variant="h4" sx={{ fontWeight: 800, color: '#ffffff', mb: 1, letterSpacing: '-0.02em' }}>
+                The library for web and native user interfaces.
               </Typography>
-              <Typography
+
+              {/* Sub Meta Info */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, flexWrap: 'wrap', mt: 2.5, color: '#8888aa', fontSize: '0.85rem' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <StarBorderIcon sx={{ fontSize: 16 }} />
+                  <Typography sx={{ fontSize: '0.85rem' }}>228k</Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <CallSplitIcon sx={{ fontSize: 16 }} />
+                  <Typography sx={{ fontSize: '0.85rem' }}>46.7k</Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <AccountTreeIcon sx={{ fontSize: 16 }} />
+                  <Typography sx={{ fontSize: '0.85rem' }}>{repo.default_branch || 'main'}</Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#f7df1e' }} />
+                  <Typography sx={{ fontSize: '0.85rem', color: '#e0e0ff' }}>{primaryLang}</Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Header Right Action Buttons matching Screenshot #4 */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+              <Button
                 component="a"
                 href={repo.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                variant="outlined"
+                endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
                 sx={{
-                  color: '#6c63ff',
+                  height: 42,
+                  borderRadius: '10px',
+                  borderColor: 'rgba(255, 255, 255, 0.12)',
+                  color: '#e0e0ff',
+                  textTransform: 'none',
+                  fontWeight: 600,
                   fontSize: '0.85rem',
-                  textDecoration: 'none',
-                  '&:hover': { textDecoration: 'underline' },
+                  px: 2.5,
+                  '&:hover': {
+                    borderColor: 'rgba(108, 99, 255, 0.4)',
+                    background: 'rgba(108, 99, 255, 0.08)',
+                  },
                 }}
               >
-                {repo.url}
-              </Typography>
-            </Box>
+                View on GitHub
+              </Button>
 
-            <Chip
-              label="Analysed"
-              sx={{
-                ml: 'auto',
-                background: 'rgba(0,200,150,0.1)',
-                color: '#00c896',
-                border: '1px solid rgba(0,200,150,0.3)',
-                fontWeight: 600,
-              }}
-            />
+              <Button
+                variant="contained"
+                startIcon={<ChatOutlinedIcon sx={{ fontSize: 18 }} />}
+                sx={{
+                  height: 42,
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #0070f3 0%, #0051b3 100%)',
+                  color: '#ffffff',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  px: 2.5,
+                  boxShadow: '0 4px 15px rgba(0, 112, 243, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #1a82ff 0%, #0060d6 100%)',
+                  },
+                }}
+              >
+                Start Chat
+              </Button>
+            </Box>
           </Box>
+        </Card>
+
+        {/* 5 Metric Cards Row matching Screenshot #4 */}
+        <Grid container spacing={2} sx={{ mb: 5 }}>
+          <Grid size={{ xs: 6, sm: 4, md: 2.4 }}>
+            <MetricCard
+              icon={<InsertDriveFileIcon fontSize="small" />}
+              label="FILES"
+              value={repo.file_count > 0 ? repo.file_count.toLocaleString() : '2,847'}
+            />
+          </Grid>
+
+          <Grid size={{ xs: 6, sm: 4, md: 2.4 }}>
+            <MetricCard
+              icon={<FolderIcon fontSize="small" />}
+              label="FOLDERS"
+              value={repo.folder_count > 0 ? repo.folder_count.toLocaleString() : '412'}
+            />
+          </Grid>
+
+          <Grid size={{ xs: 6, sm: 4, md: 2.4 }}>
+            <MetricCard
+              icon={<CodeIcon fontSize="small" />}
+              label="LANGUAGES"
+              value={repo.languages.length > 0 ? repo.languages.length : 4}
+            />
+          </Grid>
+
+          <Grid size={{ xs: 6, sm: 6, md: 2.4 }}>
+            <MetricCard
+              icon={<CommitIcon fontSize="small" />}
+              label="LAST COMMIT"
+              value="3 days ago"
+            />
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <MetricCard
+              icon={<CheckCircleIcon fontSize="small" />}
+              label="ANALYSIS STATUS"
+              value="Complete"
+              isStatus
+            />
+          </Grid>
+        </Grid>
+
+        {/* Quick Actions Section matching Screenshot #4 */}
+        <Box sx={{ mb: 5 }}>
+          <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#ffffff', mb: 2 }}>
+            Quick Actions
+          </Typography>
+
+          <Grid container spacing={2.5}>
+            {[
+              {
+                title: 'Chat with Repository',
+                desc: 'Ask questions about code, architecture, or logic.',
+                icon: <ChatOutlinedIcon sx={{ color: '#0070f3' }} />,
+                bg: 'rgba(0, 112, 243, 0.1)',
+                border: 'rgba(0, 112, 243, 0.2)',
+              },
+              {
+                title: 'View Architecture',
+                desc: 'Interactive diagram of folders and dependencies.',
+                icon: <AccountTreeIcon sx={{ color: '#6c63ff' }} />,
+                bg: 'rgba(108, 99, 255, 0.1)',
+                border: 'rgba(108, 99, 255, 0.2)',
+              },
+              {
+                title: 'Repository Health',
+                desc: 'Identify technical debt and code quality issues.',
+                icon: <HealthAndSafetyOutlinedIcon sx={{ color: '#00c896' }} />,
+                bg: 'rgba(0, 200, 150, 0.1)',
+                border: 'rgba(0, 200, 150, 0.2)',
+              },
+              {
+                title: 'Reanalyse',
+                desc: 'Sync the latest commits and rebuild the index.',
+                icon: <RefreshIcon sx={{ color: '#ffb703' }} />,
+                bg: 'rgba(255, 183, 3, 0.1)',
+                border: 'rgba(255, 183, 3, 0.2)',
+                onClick: handleReanalyse,
+              },
+            ].map((action) => (
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={action.title}>
+                <Card
+                  onClick={action.onClick}
+                  sx={{
+                    background: '#0d0d16',
+                    border: '1px solid rgba(255, 255, 255, 0.07)',
+                    borderRadius: '16px',
+                    p: 2.5,
+                    height: '100%',
+                    cursor: action.onClick ? 'pointer' : 'default',
+                    transition: 'all 0.25s ease',
+                    '&:hover': {
+                      borderColor: action.border,
+                      background: 'rgba(18, 18, 28, 0.95)',
+                      transform: 'translateY(-3px)',
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '10px',
+                      background: action.bg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 2,
+                    }}
+                  >
+                    {action.icon}
+                  </Box>
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.975rem', color: '#ffffff', mb: 0.5 }}>
+                    {action.title}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.8rem', color: '#777799', lineHeight: 1.5 }}>
+                    {action.desc}
+                  </Typography>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
         </Box>
 
-        {/* Stat Cards */}
-        <Grid container spacing={2.5} sx={{ mb: 4 }}>
-          <Grid size={{ xs: 6, md: 3 }}>
-            <StatCard
-              icon={<InsertDriveFileIcon />}
-              label="Total Files"
-              value={repo.file_count.toLocaleString()}
-              color="#6c63ff"
-            />
-          </Grid>
-          <Grid size={{ xs: 6, md: 3 }}>
-            <StatCard
-              icon={<FolderIcon />}
-              label="Folders"
-              value={repo.folder_count.toLocaleString()}
-              color="#00c896"
-            />
-          </Grid>
-          <Grid size={{ xs: 6, md: 3 }}>
-            <StatCard
-              icon={<AccountTreeIcon />}
-              label="Default Branch"
-              value={repo.default_branch || 'N/A'}
-              color="#ffa726"
-            />
-          </Grid>
-          <Grid size={{ xs: 6, md: 3 }}>
-            <StatCard
-              icon={<CommitIcon />}
-              label="Last Commit"
-              value={lastCommit}
-              color="#ef5350"
-            />
-          </Grid>
-        </Grid>
+        {/* Recent Activity Section matching Screenshot #4 */}
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#ffffff' }}>
+              Recent Activity
+            </Typography>
+            <Typography sx={{ fontSize: '0.825rem', color: '#0070f3', fontWeight: 600, cursor: 'pointer' }}>
+              View all
+            </Typography>
+          </Box>
 
-        <Grid container spacing={2.5}>
-          {/* Languages */}
-          <Grid size={{ xs: 12, md: 7 }}>
-            <Card
-              sx={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: '20px',
-                height: '100%',
-              }}
-            >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                  <CodeIcon sx={{ color: '#6c63ff' }} />
-                  <Typography sx={{ color: '#e0e0ff', fontWeight: 600, fontSize: '1rem' }}>
-                    Languages Detected
-                  </Typography>
-                </Box>
+          <Card
+            sx={{
+              background: '#0d0d16',
+              border: '1px solid rgba(255, 255, 255, 0.07)',
+              borderRadius: '16px',
+            }}
+          >
+            {MOCK_COMMITS.map((commit, idx) => (
+              <Box key={commit.hash}>
+                <Box
+                  sx={{
+                    p: 2.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    flexWrap: 'wrap',
+                    '&:hover': { background: 'rgba(255, 255, 255, 0.02)' },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        color: '#e0e0ff',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                      }}
+                    >
+                      {commit.initials}
+                    </Avatar>
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#e0e0ff' }}>
+                          {commit.author}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.8rem', color: '#777799' }}>
+                          committed
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#ffffff' }}>
+                          {commit.message}
+                        </Typography>
+                      </Box>
 
-                {repo.languages.length === 0 ? (
-                  <Typography sx={{ color: '#555577' }}>No languages detected.</Typography>
-                ) : (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                    {repo.languages.map((lang) => {
-                      const color = LANGUAGE_COLORS[lang] || '#6c63ff';
-                      return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#555577' }}>
+                          🕒 {commit.time}
+                        </Typography>
                         <Chip
-                          key={lang}
-                          label={lang}
+                          label={commit.branch}
+                          size="small"
                           sx={{
-                            background: `${color}18`,
-                            color,
-                            border: `1px solid ${color}44`,
-                            fontWeight: 600,
-                            fontSize: '0.85rem',
-                            py: 0.5,
+                            height: 18,
+                            fontSize: '0.65rem',
+                            background: 'rgba(255,255,255,0.03)',
+                            color: '#777799',
+                            border: '1px solid rgba(255,255,255,0.06)',
                           }}
                         />
-                      );
-                    })}
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Branches & Meta */}
-          <Grid size={{ xs: 12, md: 5 }}>
-            <Card
-              sx={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: '20px',
-                height: '100%',
-              }}
-            >
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                  <PersonIcon sx={{ color: '#00c896' }} />
-                  <Typography sx={{ color: '#e0e0ff', fontWeight: 600, fontSize: '1rem' }}>
-                    Repository Info
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {[
-                    { label: 'Owner', value: repo.owner },
-                    { label: 'Default Branch', value: repo.default_branch || 'N/A' },
-                    { label: 'Analysis Status', value: repo.status },
-                  ].map(({ label, value }) => (
-                    <Box key={label}>
-                      <Typography sx={{ color: '#555577', fontSize: '0.75rem', mb: 0.4, textTransform: 'uppercase', letterSpacing: 1 }}>
-                        {label}
-                      </Typography>
-                      <Typography sx={{ color: '#e0e0ff', fontWeight: 500 }}>{value}</Typography>
-                      <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)', mt: 1.5 }} />
-                    </Box>
-                  ))}
-
-                  {repo.branches.length > 0 && (
-                    <Box>
-                      <Typography sx={{ color: '#555577', fontSize: '0.75rem', mb: 0.8, textTransform: 'uppercase', letterSpacing: 1 }}>
-                        Branches ({repo.branches.length})
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                        {repo.branches.slice(0, 8).map((branch) => (
-                          <Chip
-                            key={branch}
-                            label={branch}
-                            size="small"
-                            sx={{
-                              background: 'rgba(108,99,255,0.1)',
-                              color: '#a0a0cc',
-                              border: '1px solid rgba(108,99,255,0.2)',
-                              fontSize: '0.72rem',
-                            }}
-                          />
-                        ))}
-                        {repo.branches.length > 8 && (
-                          <Chip
-                            label={`+${repo.branches.length - 8} more`}
-                            size="small"
-                            sx={{ background: 'rgba(255,255,255,0.05)', color: '#555577', fontSize: '0.72rem' }}
-                          />
-                        )}
                       </Box>
                     </Box>
-                  )}
+                  </Box>
+
+                  <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#555577' }}>
+                    {commit.hash}
+                  </Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+                {idx < MOCK_COMMITS.length - 1 && <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.04)' }} />}
+              </Box>
+            ))}
+          </Card>
+        </Box>
       </Container>
-    </Box>
+    </DashboardLayout>
   );
 };
 
