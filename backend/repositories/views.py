@@ -80,6 +80,8 @@ class AnalyseRepositoryView(APIView):
             repo_record.file_count = metadata.get('file_count', 0)
             repo_record.folder_count = metadata.get('folder_count', 0)
             repo_record.last_commit_date = last_commit_date
+            repo_record.description = metadata.get('description', '')
+            repo_record.recent_commits = metadata.get('recent_commits', [])
             repo_record.status = Repository.Status.SUCCESS
             repo_record.save()
 
@@ -115,6 +117,9 @@ class RepositoryDetailView(APIView):
     """
     GET /api/repositories/:id
     Retrieves a specific repository by ID (must belong to the current user).
+
+    DELETE /api/repositories/:id
+    Deletes a specific repository by ID (must belong to the current user).
     """
     permission_classes = [IsAuthenticated]
 
@@ -128,3 +133,14 @@ class RepositoryDetailView(APIView):
             )
         serializer = RepositorySerializer(repo)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        try:
+            repo = Repository.objects.get(pk=pk, user=request.user)
+        except Repository.DoesNotExist:
+            return Response(
+                {'error': 'Repository not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        repo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

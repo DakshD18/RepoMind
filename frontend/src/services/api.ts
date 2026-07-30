@@ -64,4 +64,8 @@ export const getRepository = (id: number): Promise<Repository> =>
 export const getDashboardRepository = (id: number): Promise<Repository> =>
   api.get(`/dashboard/${id}/`).then((res) => res.data);
 
+// Delete repository
+export const deleteRepository = (id: number): Promise<void> =>
+  api.delete(`/repositories/${id}/`).then(() => undefined);
+
 export default api;

@@ -11,6 +11,11 @@ import {
   Grid,
   CircularProgress,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -24,10 +29,11 @@ import SearchIcon from '@mui/icons-material/Search';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlinedIcon from '@mui/icons-material/ErrorOutlined';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { AnalysisLoading } from '../components/AnalysisLoading';
 import { useAuth } from '../context/AuthContext';
-import { analyseRepository, getRepositories } from '../services/api';
+import { analyseRepository, getRepositories, deleteRepository } from '../services/api';
 import type { Repository } from '../types';
 
 const schema = z.object({
@@ -100,12 +106,38 @@ const StatusBadge = ({ status }: { status: Repository['status'] }) => {
   );
 };
 
+// Language color mapping
+const LANG_COLORS: Record<string, string> = {
+  Python: '#3776ab',
+  TypeScript: '#3178c6',
+  JavaScript: '#f7df1e',
+  Java: '#b07219',
+  Go: '#00add8',
+  Rust: '#dea584',
+  Ruby: '#701516',
+  PHP: '#4f5d95',
+  'C++': '#f34b7d',
+  C: '#555555',
+  'C#': '#178600',
+  Swift: '#f05138',
+  Kotlin: '#a97bff',
+  HTML: '#e34c26',
+  CSS: '#563d7c',
+  SCSS: '#c6538c',
+  Shell: '#89e051',
+  Dart: '#00b4ab',
+  Vue: '#41b883',
+};
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [isAnalysing, setIsAnalysing] = useState(false);
   const [analysingUrl, setAnalysingUrl] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [repoToDelete, setRepoToDelete] = useState<Repository | null>(null);
 
   const {
     register,
@@ -151,13 +183,62 @@ export const Dashboard: React.FC = () => {
     setValue('url', url, { shouldValidate: true });
   };
 
+  const handleDeleteClick = (e: React.MouseEvent, repo: Repository) => {
+    e.stopPropagation();
+    setRepoToDelete(repo);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!repoToDelete) return;
+    try {
+      await deleteRepository(repoToDelete.id);
+      toast.success(`Deleted ${repoToDelete.owner}/${repoToDelete.name}`);
+      setRepositories((prev) => prev.filter((r) => r.id !== repoToDelete.id));
+    } catch {
+      toast.error('Failed to delete repository.');
+    } finally {
+      setDeleteDialogOpen(false);
+      setRepoToDelete(null);
+    }
+  };
+
+  // Filter repos based on search
+  const filteredRepos = repositories.filter((repo) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      repo.name.toLowerCase().includes(q) ||
+      repo.owner.toLowerCase().includes(q) ||
+      repo.languages.some((l) => l.toLowerCase().includes(q))
+    );
+  });
+
+  // Format relative time from ISO date
+  const formatTimeAgo = (dateStr: string | null): string => {
+    if (!dateStr) return 'Just now';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDays = Math.floor(diffHr / 24);
+    if (diffDays < 30) return `${diffDays}d ago`;
+    const diffMonths = Math.floor(diffDays / 30);
+    return `${diffMonths}mo ago`;
+  };
+
   return (
     <DashboardLayout>
-      {/* Analysis Fullscreen Overlay matching screenshot #5 */}
+      {/* Analysis Fullscreen Overlay */}
       {isAnalysing && <AnalysisLoading repoUrl={analysingUrl} />}
 
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Welcome Header matching Screenshot #1 */}
+        {/* Welcome Header */}
         <Box sx={{ mb: 4 }}>
           <Typography
             variant="h4"
@@ -176,7 +257,7 @@ export const Dashboard: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* Main Banner: Analyse a Repository matching Screenshot #1 */}
+        {/* Main Banner: Analyse a Repository */}
         <Card
           sx={{
             background: 'linear-gradient(135deg, rgba(18, 18, 28, 0.9) 0%, rgba(13, 13, 20, 0.9) 100%)',
@@ -304,7 +385,7 @@ export const Dashboard: React.FC = () => {
           </Box>
         </Card>
 
-        {/* Empty State View matching Screenshot #2 if no repos exist */}
+        {/* Empty State View if no repos exist */}
         {repositories.length === 0 ? (
           <Card
             sx={{
@@ -317,7 +398,7 @@ export const Dashboard: React.FC = () => {
               overflow: 'hidden',
             }}
           >
-            {/* Central Glowing Globe Graphic matching Screenshot #2 */}
+            {/* Central Glowing Globe Graphic */}
             <Box
               sx={{
                 width: 140,
@@ -344,7 +425,7 @@ export const Dashboard: React.FC = () => {
               Paste your first GitHub repository URL to begin analysing its architecture, history, and intelligence.
             </Typography>
 
-            {/* Popular Repository Tags matching Screenshot #2 */}
+            {/* Popular Repository Tags */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, flexWrap: 'wrap' }}>
               <Typography sx={{ fontSize: '0.75rem', color: '#555577', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', mr: 1 }}>
                 OR TRY A POPULAR REPOSITORY
@@ -374,7 +455,7 @@ export const Dashboard: React.FC = () => {
             </Box>
           </Card>
         ) : (
-          /* Recent Repositories Grid matching Screenshot #1 */
+          /* Recent Repositories Grid */
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -383,22 +464,50 @@ export const Dashboard: React.FC = () => {
                   Recent Repositories
                 </Typography>
               </Box>
-              <Typography
+
+              {/* Search filter */}
+              <Box
                 sx={{
-                  fontSize: '0.85rem',
-                  color: '#6c63ff',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  '&:hover': { textDecoration: 'underline' },
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.07)',
+                  borderRadius: '10px',
+                  px: 1.5,
+                  py: 0.3,
+                  width: 200,
+                  transition: 'all 0.2s ease',
+                  '&:focus-within': {
+                    border: '1px solid rgba(108, 99, 255, 0.5)',
+                    background: 'rgba(108, 99, 255, 0.05)',
+                  },
                 }}
               >
-                View all
-              </Typography>
+                <SearchIcon sx={{ color: '#555577', fontSize: 16, mr: 0.8 }} />
+                <TextField
+                  variant="standard"
+                  placeholder="Filter repos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  slotProps={{
+                    input: {
+                      disableUnderline: true,
+                      sx: {
+                        color: '#e0e0ff',
+                        fontSize: '0.8rem',
+                        '& input::placeholder': { color: '#555577', opacity: 1 },
+                      },
+                    },
+                  }}
+                  sx={{ flex: 1 }}
+                />
+              </Box>
             </Box>
 
             <Grid container spacing={2.5}>
-              {repositories.map((repo) => {
+              {filteredRepos.map((repo) => {
                 const primaryLang = repo.languages[0] || 'Code';
+                const langColor = LANG_COLORS[primaryLang] || '#6c63ff';
 
                 return (
                   <Grid size={{ xs: 12, sm: 6, md: 4 }} key={repo.id}>
@@ -460,18 +569,51 @@ export const Dashboard: React.FC = () => {
                                   width: 7,
                                   height: 7,
                                   borderRadius: '50%',
-                                  background: primaryLang === 'Python' ? '#3776ab' : primaryLang === 'TypeScript' ? '#3178c6' : primaryLang === 'JavaScript' ? '#f7df1e' : '#6c63ff',
+                                  background: langColor,
                                 }}
                               />
                               <Typography sx={{ fontSize: '0.75rem', color: '#777799' }}>
-                                {primaryLang} • {repo.created_at ? 'Recently' : 'Just now'}
+                                {primaryLang} • {formatTimeAgo(repo.created_at)}
                               </Typography>
                             </Box>
                           </Box>
+
+                          {/* Delete button */}
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleDeleteClick(e, repo)}
+                            sx={{
+                              color: '#555577',
+                              p: 0.5,
+                              opacity: 0,
+                              transition: 'opacity 0.2s ease',
+                              '.MuiCard-root:hover &': { opacity: 1 },
+                              '&:hover': { color: '#ef5350' },
+                            }}
+                          >
+                            <DeleteOutlinedIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
                         </Box>
+
+                        {/* Description preview */}
+                        {repo.description && (
+                          <Typography
+                            sx={{
+                              fontSize: '0.8rem',
+                              color: '#8888aa',
+                              lineHeight: 1.5,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {repo.description}
+                          </Typography>
+                        )}
                       </CardContent>
 
-                      {/* Card Footer matching Screenshot #1 */}
+                      {/* Card Footer */}
                       <Box
                         sx={{
                           px: 2.5,
@@ -488,7 +630,7 @@ export const Dashboard: React.FC = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <StarBorderIcon sx={{ fontSize: 14, color: '#666688' }} />
                             <Typography sx={{ fontSize: '0.75rem', color: '#777799' }}>
-                              {repo.file_count || 12}
+                              {repo.file_count || 0}
                             </Typography>
                           </Box>
                           <IconButton size="small" sx={{ color: '#555577', p: 0.5 }}>
@@ -501,7 +643,7 @@ export const Dashboard: React.FC = () => {
                 );
               })}
 
-              {/* Discover More Card matching Screenshot #1 */}
+              {/* Discover More Card */}
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <Card
                   sx={{
@@ -549,6 +691,64 @@ export const Dashboard: React.FC = () => {
           </Box>
         )}
       </Container>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        slotProps={{
+          paper: {
+            sx: {
+              background: '#12121c',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '16px',
+              maxWidth: 400,
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: '#ffffff', fontWeight: 700, fontSize: '1.1rem' }}>
+          Delete Repository
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#8888aa', fontSize: '0.9rem' }}>
+            Are you sure you want to delete{' '}
+            <strong style={{ color: '#e0e0ff' }}>
+              {repoToDelete?.owner}/{repoToDelete?.name}
+            </strong>
+            ? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            onClick={() => setDeleteDialogOpen(false)}
+            sx={{
+              color: '#8888aa',
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '10px',
+              px: 2,
+              '&:hover': { background: 'rgba(255, 255, 255, 0.05)' },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="contained"
+            sx={{
+              background: '#ef5350',
+              textTransform: 'none',
+              fontWeight: 700,
+              borderRadius: '10px',
+              px: 2.5,
+              '&:hover': { background: '#d32f2f' },
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </DashboardLayout>
   );
 };

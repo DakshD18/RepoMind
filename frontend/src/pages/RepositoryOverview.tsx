@@ -38,6 +38,29 @@ interface MetricCardProps {
   isStatus?: boolean;
 }
 
+// Language color mapping
+const LANG_COLORS: Record<string, string> = {
+  Python: '#3776ab',
+  TypeScript: '#3178c6',
+  JavaScript: '#f7df1e',
+  Java: '#b07219',
+  Go: '#00add8',
+  Rust: '#dea584',
+  Ruby: '#701516',
+  PHP: '#4f5d95',
+  'C++': '#f34b7d',
+  C: '#555555',
+  'C#': '#178600',
+  Swift: '#f05138',
+  Kotlin: '#a97bff',
+  HTML: '#e34c26',
+  CSS: '#563d7c',
+  SCSS: '#c6538c',
+  Shell: '#89e051',
+  Dart: '#00b4ab',
+  Vue: '#41b883',
+};
+
 const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, isStatus }) => (
   <Card
     sx={{
@@ -76,32 +99,23 @@ const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, isStatus })
   </Card>
 );
 
-const MOCK_COMMITS = [
-  {
-    author: 'gaearon',
-    initials: 'GA',
-    message: 'React 19 Release Candidate preparations',
-    time: '3 hours ago',
-    branch: 'main',
-    hash: 'a1b2c3d',
-  },
-  {
-    author: 'acdlite',
-    initials: 'AC',
-    message: 'Fix hydration mismatch in Suspense boundaries',
-    time: '5 hours ago',
-    branch: 'main',
-    hash: 'd1e2f3a',
-  },
-  {
-    author: 'sebmarkbage',
-    initials: 'SM',
-    message: 'Optimize Server Components tree serialization',
-    time: '1 day ago',
-    branch: 'main',
-    hash: 'f9e8d7c',
-  },
-];
+// Format relative time from ISO date
+const formatLastCommit = (dateStr: string | null): string => {
+  if (!dateStr) return 'N/A';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return `${diffSec} seconds ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? 's' : ''} ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays < 30) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
+};
 
 export const RepositoryOverview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -173,11 +187,13 @@ export const RepositoryOverview: React.FC = () => {
   }
 
   const primaryLang = repo.languages[0] || 'JavaScript';
+  const primaryLangColor = LANG_COLORS[primaryLang] || '#f7df1e';
+  const commits = repo.recent_commits || [];
 
   return (
     <DashboardLayout>
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Back button & Breadcrumb matching Screenshot #4 */}
+        {/* Back button & Breadcrumb */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
           <Typography
             onClick={() => navigate('/dashboard')}
@@ -191,7 +207,7 @@ export const RepositoryOverview: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* Main Repository Header Banner matching Screenshot #4 */}
+        {/* Main Repository Header Banner */}
         <Card
           sx={{
             background: '#0d0d16',
@@ -225,19 +241,19 @@ export const RepositoryOverview: React.FC = () => {
 
               {/* Title & Description */}
               <Typography variant="h4" sx={{ fontWeight: 800, color: '#ffffff', mb: 1, letterSpacing: '-0.02em' }}>
-                The library for web and native user interfaces.
+                {repo.description || `${repo.owner}/${repo.name}`}
               </Typography>
 
               {/* Sub Meta Info */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, flexWrap: 'wrap', mt: 2.5, color: '#8888aa', fontSize: '0.85rem' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <StarBorderIcon sx={{ fontSize: 16 }} />
-                  <Typography sx={{ fontSize: '0.85rem' }}>228k</Typography>
+                  <Typography sx={{ fontSize: '0.85rem' }}>{repo.file_count.toLocaleString()}</Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <CallSplitIcon sx={{ fontSize: 16 }} />
-                  <Typography sx={{ fontSize: '0.85rem' }}>46.7k</Typography>
+                  <Typography sx={{ fontSize: '0.85rem' }}>{repo.branches.length}</Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -246,13 +262,13 @@ export const RepositoryOverview: React.FC = () => {
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#f7df1e' }} />
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: primaryLangColor }} />
                   <Typography sx={{ fontSize: '0.85rem', color: '#e0e0ff' }}>{primaryLang}</Typography>
                 </Box>
               </Box>
             </Box>
 
-            {/* Header Right Action Buttons matching Screenshot #4 */}
+            {/* Header Right Action Buttons */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
               <Button
                 component="a"
@@ -303,13 +319,13 @@ export const RepositoryOverview: React.FC = () => {
           </Box>
         </Card>
 
-        {/* 5 Metric Cards Row matching Screenshot #4 */}
+        {/* 5 Metric Cards Row */}
         <Grid container spacing={2} sx={{ mb: 5 }}>
           <Grid size={{ xs: 6, sm: 4, md: 2.4 }}>
             <MetricCard
               icon={<InsertDriveFileIcon fontSize="small" />}
               label="FILES"
-              value={repo.file_count > 0 ? repo.file_count.toLocaleString() : '2,847'}
+              value={repo.file_count > 0 ? repo.file_count.toLocaleString() : '0'}
             />
           </Grid>
 
@@ -317,7 +333,7 @@ export const RepositoryOverview: React.FC = () => {
             <MetricCard
               icon={<FolderIcon fontSize="small" />}
               label="FOLDERS"
-              value={repo.folder_count > 0 ? repo.folder_count.toLocaleString() : '412'}
+              value={repo.folder_count > 0 ? repo.folder_count.toLocaleString() : '0'}
             />
           </Grid>
 
@@ -325,7 +341,7 @@ export const RepositoryOverview: React.FC = () => {
             <MetricCard
               icon={<CodeIcon fontSize="small" />}
               label="LANGUAGES"
-              value={repo.languages.length > 0 ? repo.languages.length : 4}
+              value={repo.languages.length > 0 ? repo.languages.length : 0}
             />
           </Grid>
 
@@ -333,7 +349,7 @@ export const RepositoryOverview: React.FC = () => {
             <MetricCard
               icon={<CommitIcon fontSize="small" />}
               label="LAST COMMIT"
-              value="3 days ago"
+              value={formatLastCommit(repo.last_commit_date)}
             />
           </Grid>
 
@@ -341,13 +357,13 @@ export const RepositoryOverview: React.FC = () => {
             <MetricCard
               icon={<CheckCircleIcon fontSize="small" />}
               label="ANALYSIS STATUS"
-              value="Complete"
-              isStatus
+              value={repo.status === 'SUCCESS' ? 'Complete' : repo.status === 'PROCESSING' ? 'Processing' : repo.status === 'PENDING' ? 'Pending' : 'Failed'}
+              isStatus={repo.status === 'SUCCESS'}
             />
           </Grid>
         </Grid>
 
-        {/* Quick Actions Section matching Screenshot #4 */}
+        {/* Quick Actions Section */}
         <Box sx={{ mb: 5 }}>
           <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#ffffff', mb: 2 }}>
             Quick Actions
@@ -429,7 +445,7 @@ export const RepositoryOverview: React.FC = () => {
           </Grid>
         </Box>
 
-        {/* Recent Activity Section matching Screenshot #4 */}
+        {/* Recent Activity Section — real commit data from backend */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#ffffff' }}>
@@ -447,72 +463,88 @@ export const RepositoryOverview: React.FC = () => {
               borderRadius: '16px',
             }}
           >
-            {MOCK_COMMITS.map((commit, idx) => (
-              <Box key={commit.hash}>
-                <Box
-                  sx={{
-                    p: 2.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 2,
-                    flexWrap: 'wrap',
-                    '&:hover': { background: 'rgba(255, 255, 255, 0.02)' },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar
-                      sx={{
-                        width: 34,
-                        height: 34,
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        color: '#e0e0ff',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                      }}
-                    >
-                      {commit.initials}
-                    </Avatar>
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#e0e0ff' }}>
-                          {commit.author}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.8rem', color: '#777799' }}>
-                          committed
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#ffffff' }}>
-                          {commit.message}
-                        </Typography>
-                      </Box>
+            {commits.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <CommitIcon sx={{ fontSize: 36, color: '#333355', mb: 1 }} />
+                <Typography sx={{ color: '#555577', fontSize: '0.9rem' }}>
+                  No commit history available yet.
+                </Typography>
+                <Typography sx={{ color: '#444466', fontSize: '0.8rem', mt: 0.5 }}>
+                  Re-analyse the repository with a deeper clone to fetch commits.
+                </Typography>
+              </Box>
+            ) : (
+              commits.map((commit, idx) => (
+                <Box key={`${commit.hash}-${idx}`}>
+                  <Box
+                    sx={{
+                      p: 2.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 2,
+                      flexWrap: 'wrap',
+                      '&:hover': { background: 'rgba(255, 255, 255, 0.02)' },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, flex: 1 }}>
+                      <Avatar
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          color: '#e0e0ff',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {commit.initials}
+                      </Avatar>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#e0e0ff' }}>
+                            {commit.author}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.8rem', color: '#777799' }}>
+                            committed
+                          </Typography>
+                          <Typography
+                            noWrap
+                            sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#ffffff', maxWidth: { xs: 200, sm: 400, md: 500 } }}
+                          >
+                            {commit.message}
+                          </Typography>
+                        </Box>
 
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#555577' }}>
-                          🕒 {commit.time}
-                        </Typography>
-                        <Chip
-                          label={commit.branch}
-                          size="small"
-                          sx={{
-                            height: 18,
-                            fontSize: '0.65rem',
-                            background: 'rgba(255,255,255,0.03)',
-                            color: '#777799',
-                            border: '1px solid rgba(255,255,255,0.06)',
-                          }}
-                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#555577' }}>
+                            🕒 {commit.time}
+                          </Typography>
+                          <Chip
+                            label={`⎇ ${commit.branch}`}
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: '0.65rem',
+                              background: 'rgba(255,255,255,0.03)',
+                              color: '#777799',
+                              border: '1px solid rgba(255,255,255,0.06)',
+                            }}
+                          />
+                        </Box>
                       </Box>
                     </Box>
-                  </Box>
 
-                  <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#555577' }}>
-                    {commit.hash}
-                  </Typography>
+                    <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#555577', flexShrink: 0 }}>
+                      {commit.hash}
+                    </Typography>
+                  </Box>
+                  {idx < commits.length - 1 && <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.04)' }} />}
                 </Box>
-                {idx < MOCK_COMMITS.length - 1 && <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.04)' }} />}
-              </Box>
-            ))}
+              ))
+            )}
           </Card>
         </Box>
       </Container>

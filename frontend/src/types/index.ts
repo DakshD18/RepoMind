@@ -6,6 +6,16 @@ export interface User {
   last_name: string;
 }
 
+export interface Commit {
+  author: string;
+  email: string;
+  initials: string;
+  message: string;
+  time: string;
+  branch: string;
+  hash: string;
+}
+
 export interface Repository {
   id: number;
   url: string;
@@ -17,6 +27,8 @@ export interface Repository {
   file_count: number;
   folder_count: number;
   last_commit_date: string | null;
+  description: string;
+  recent_commits: Commit[];
   status: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
   error_message: string;
   created_at: string;

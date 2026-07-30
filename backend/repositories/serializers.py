@@ -8,12 +8,14 @@ class RepositorySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'url', 'name', 'owner', 'default_branch', 'branches',
             'languages', 'file_count', 'folder_count', 'last_commit_date',
+            'description', 'recent_commits',
             'status', 'error_message', 'created_at', 'updated_at',
         ]
         read_only_fields = [
             'id', 'name', 'owner', 'default_branch', 'branches', 'languages',
-            'file_count', 'folder_count', 'last_commit_date', 'status',
-            'error_message', 'created_at', 'updated_at',
+            'file_count', 'folder_count', 'last_commit_date',
+            'description', 'recent_commits',
+            'status', 'error_message', 'created_at', 'updated_at',
         ]
 
 
