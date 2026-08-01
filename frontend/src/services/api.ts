@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from 'axios'; //library for http requests
 import type { AuthResponse, Repository } from '../types';
 
 const api = axios.create({

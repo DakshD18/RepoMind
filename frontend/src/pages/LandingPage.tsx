@@ -310,203 +310,92 @@ export const LandingPage: React.FC = () => {
             </Box>
           </Grid>
 
-          {/* Right Side Glass Window Mockup matching Screenshot #3 */}
+          {/* Right Side Image */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Box
+              component="img"
+              src="/hero-graph.png"
+              alt="Network Graph Visualization"
               sx={{
-                position: 'relative',
-                borderRadius: '20px',
-                background: '#0d0d16',
+                width: '100%',
+                height: 'auto',
+                borderRadius: '16px',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(108, 99, 255, 0.15)',
-                overflow: 'hidden',
               }}
-            >
-              {/* Window Header */}
-              <Box
-                sx={{
-                  px: 2.5,
-                  py: 1.5,
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                }}
-              >
-                <Box sx={{ display: 'flex', gap: 0.8 }}>
-                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', background: '#ef5350' }} />
-                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', background: '#ffb703' }} />
-                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', background: '#00c896' }} />
-                </Box>
-                <Box
-                  sx={{
-                    mx: 'auto',
-                    px: 2,
-                    py: 0.4,
-                    borderRadius: '6px',
-                    background: 'rgba(0, 0, 0, 0.4)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    maxWidth: 240,
-                  }}
-                >
-                  <GitHubIcon sx={{ fontSize: 14, color: '#6c63ff' }} />
-                  <Typography sx={{ fontSize: '0.75rem', color: '#8888aa' }}>
-                    https://github.com/facebook/react
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Window Canvas Graphics (Network Graph Visualizer Mockup) */}
-              <Box
-                sx={{
-                  height: 320,
-                  position: 'relative',
-                  background: 'radial-gradient(circle at 50% 50%, #131224 0%, #0c0c14 100%)',
-                  p: 3,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {/* Simulated Nodes & Glowing Connectors */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    inset: 0,
-                    opacity: 0.8,
-                    background: `
-                      radial-gradient(circle at 30% 40%, rgba(108, 99, 255, 0.3) 0%, transparent 40%),
-                      radial-gradient(circle at 70% 60%, rgba(0, 200, 150, 0.2) 0%, transparent 40%)
-                    `,
-                  }}
-                />
-
-                {/* SVG Graph Lines */}
-                <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
-                  <line x1="20%" y1="30%" x2="50%" y2="50%" stroke="rgba(108, 99, 255, 0.4)" strokeWidth="1.5" strokeDasharray="4 2" />
-                  <line x1="80%" y1="30%" x2="50%" y2="50%" stroke="rgba(108, 99, 255, 0.4)" strokeWidth="1.5" />
-                  <line x1="50%" y1="50%" x2="35%" y2="75%" stroke="rgba(0, 200, 150, 0.4)" strokeWidth="1.5" />
-                  <line x1="50%" y1="50%" x2="65%" y2="80%" stroke="rgba(108, 99, 255, 0.4)" strokeWidth="1.5" />
-                </svg>
-
-                {/* Node Circles */}
-                <Box sx={{ position: 'absolute', top: '28%', left: '18%', p: 1, borderRadius: '50%', background: 'rgba(108,99,255,0.2)', border: '1px solid #6c63ff' }}>
-                  <CodeIcon sx={{ fontSize: 16, color: '#6c63ff' }} />
-                </Box>
-                <Box sx={{ position: 'absolute', top: '28%', right: '18%', p: 1, borderRadius: '50%', background: 'rgba(0,200,150,0.2)', border: '1px solid #00c896' }}>
-                  <AccountTreeIcon sx={{ fontSize: 16, color: '#00c896' }} />
-                </Box>
-                <Box sx={{ position: 'absolute', top: '46%', left: '46%', p: 1.5, borderRadius: '50%', background: 'rgba(108,99,255,0.4)', border: '2px solid #6c63ff', boxShadow: '0 0 20px #6c63ff' }}>
-                  <AutoAwesomeIcon sx={{ fontSize: 24, color: '#fff' }} />
-                </Box>
-
-                {/* Floating Alert Box matching Screenshot #3 */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    bottom: 20,
-                    left: 20,
-                    right: 20,
-                    p: 2,
-                    borderRadius: '12px',
-                    background: 'rgba(18, 18, 28, 0.85)',
-                    backdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(108, 99, 255, 0.3)',
-                    boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '8px',
-                      background: 'rgba(108,99,255,0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <AutoAwesomeIcon sx={{ color: '#6c63ff', fontSize: 18 }} />
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.825rem', fontWeight: 700, color: '#ffffff' }}>
-                      Architecture Analysis Complete
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#8888aa' }}>
-                      Identified 4 main modules. The reconciliation engine tightly couples with the fiber tree.
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
+            />
           </Grid>
         </Grid>
 
-        {/* Feature Cards Grid */}
-        <Box sx={{ mt: 16 }}>
-          <Typography
-            sx={{
-              textAlign: 'center',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              color: '#6c63ff',
-              letterSpacing: '2px',
-              textTransform: 'uppercase',
-              mb: 1,
-            }}
-          >
-            POWERFUL FEATURES
-          </Typography>
+      </Container>
+
+      {/* New Sections Container */}
+      <Container maxWidth="lg" sx={{ pb: { xs: 10, md: 16 } }}>
+        {/* Features Section */}
+        <Box sx={{ mt: 10, mb: 20 }}>
           <Typography
             variant="h3"
             sx={{
               textAlign: 'center',
               fontWeight: 800,
               color: '#ffffff',
-              mb: 8,
-              fontSize: { xs: '1.8rem', sm: '2.5rem' },
+              mb: 2,
+              fontSize: { xs: '2rem', sm: '2.5rem' },
             }}
           >
-            Everything you need to master codebases
+            Unpack complexity instantly
+          </Typography>
+          <Typography
+            sx={{
+              textAlign: 'center',
+              color: '#8888aa',
+              mb: 8,
+              maxWidth: 600,
+              mx: 'auto',
+            }}
+          >
+            Everything you need to understand unfamiliar codebases without spending days reading source files.
           </Typography>
 
           <Grid container spacing={3}>
             {[
               {
+                icon: <AutoAwesomeIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Repository Intelligence',
+                desc: 'Let our AI scan the entire codebase to understand dependencies, patterns, and architecture.',
+              },
+              {
+                icon: <CodeIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Dependency Discovery',
+                desc: 'See exactly how different files and modules rely on one another before making a change.',
+              },
+              {
                 icon: <AccountTreeIcon sx={{ color: '#6c63ff' }} />,
-                title: 'Architecture Mapping',
-                desc: 'Instantly visualize files, folder structures, and high-level module relationships.',
+                title: 'Architecture Intelligence',
+                desc: 'Visual representations of your codebase to quickly grasp the overarching structure.',
               },
               {
-                icon: <CodeIcon sx={{ color: '#00c896' }} />,
-                title: 'Language Intelligence',
-                desc: 'Automatic extension scanning and language breakdown across all project files.',
+                icon: <InsightsIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Impact Analysis',
+                desc: 'Understand what will break if you modify a certain file or update a specific module.',
               },
               {
-                icon: <InsightsIcon sx={{ color: '#ffb703' }} />,
-                title: 'Commit History Tracking',
-                desc: 'Inspect last commit timestamps, branch count, and maintainer activity.',
+                icon: <SecurityIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Semantic Code Search',
+                desc: 'Search for what code does, not just exact keyword matches. Find logic naturally.',
               },
               {
-                icon: <SecurityIcon sx={{ color: '#ef5350' }} />,
-                title: 'Security & Health Auditing',
-                desc: 'Identify technical debt, large directory hot spots, and structural complexity.',
+                icon: <GitHubIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Technical Debt',
+                desc: 'Automatically identify complex files, large files, and tightly coupled modules.',
               },
             ].map((f) => (
-              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={f.title}>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={f.title}>
                 <Card
                   sx={{
                     height: '100%',
                     background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
                     borderRadius: '16px',
                     transition: 'all 0.3s ease',
                     '&:hover': {
@@ -522,7 +411,7 @@ export const LandingPage: React.FC = () => {
                         width: 44,
                         height: 44,
                         borderRadius: '12px',
-                        background: 'rgba(255, 255, 255, 0.04)',
+                        background: 'rgba(108, 99, 255, 0.1)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -542,6 +431,252 @@ export const LandingPage: React.FC = () => {
               </Grid>
             ))}
           </Grid>
+        </Box>
+
+        {/* Workflow Section */}
+        <Box sx={{ mb: 20 }}>
+          <Typography
+            variant="h3"
+            sx={{
+              textAlign: 'center',
+              fontWeight: 800,
+              color: '#ffffff',
+              mb: 2,
+              fontSize: { xs: '2rem', sm: '2.5rem' },
+            }}
+          >
+            From URL to understanding in seconds
+          </Typography>
+          <Typography
+            sx={{
+              textAlign: 'center',
+              color: '#8888aa',
+              mb: 8,
+              maxWidth: 600,
+              mx: 'auto',
+            }}
+          >
+            No complex setup, no configs. Just paste a URL and let RepoMind do the heavy lifting.
+          </Typography>
+
+          <Box sx={{ maxWidth: 800, mx: 'auto', pl: { xs: 2, md: 10 } }}>
+            {[
+              {
+                icon: '🔗',
+                title: 'Paste URL',
+                desc: 'Paste any GitHub repository URL. We support public and private repositories securely.',
+              },
+              {
+                icon: '✨',
+                title: 'Analyze & Build Graph',
+                desc: 'Our engine parses files, ASTs, and dependencies to build a comprehensive knowledge graph.',
+              },
+              {
+                icon: '👁',
+                title: 'Understand Visually',
+                desc: 'Explore the architecture, jump between modules, and see how everything is connected.',
+              },
+              {
+                icon: '💬',
+                title: 'Chat with the Codebase',
+                desc: 'Ask questions like "Where is the auth logic?" and get accurate, context-aware answers.',
+              },
+            ].map((step, index) => (
+              <Box key={index} sx={{ display: 'flex', gap: 4, mb: 6, position: 'relative' }}>
+                {index !== 3 && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 48,
+                      left: 23,
+                      bottom: -32,
+                      width: 2,
+                      background: 'rgba(255, 255, 255, 0.1)',
+                    }}
+                  />
+                )}
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.25rem',
+                    flexShrink: 0,
+                    zIndex: 1,
+                  }}
+                >
+                  {step.icon}
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', mb: 1, mt: 1 }}>
+                    {step.title}
+                  </Typography>
+                  <Typography sx={{ color: '#8888aa' }}>{step.desc}</Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+
+        {/* Testimonials */}
+        <Box sx={{ mb: 20 }}>
+          <Typography
+            variant="h3"
+            sx={{
+              textAlign: 'center',
+              fontWeight: 800,
+              color: '#ffffff',
+              mb: 8,
+              fontSize: { xs: '2rem', sm: '2.5rem' },
+            }}
+          >
+            Loved by engineering leaders
+          </Typography>
+
+          <Grid container spacing={4}>
+            {[
+              {
+                name: 'Jane Doe',
+                title: 'VP of Engineering, Acme Corp',
+                text: '"RepoMind has cut our onboarding time in half. Being able to visualize the whole app before reading a single file is a game-changer."',
+              },
+              {
+                name: 'Michael Johnson',
+                title: 'Engineering Manager, TechFlow',
+                text: '"It is like having a senior engineer explain the architecture to you. I use it for every PR review now."',
+              },
+              {
+                name: 'Sarah Williams',
+                title: 'Lead Developer, StartUp Inc',
+                text: '"The visual dependency graph is incredible. It helped us identify circular dependencies we didn't even know we had."',
+              },
+            ].map((t, index) => (
+              <Grid size={{ xs: 12, md: 4 }} key={index}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: '16px',
+                  }}
+                >
+                  <CardContent sx={{ p: 4 }}>
+                    <Box sx={{ display: 'flex', gap: 0.5, mb: 2 }}>
+                      {[...Array(5)].map((_, i) => (
+                        <AutoAwesomeIcon key={i} sx={{ color: '#00c896', fontSize: 16 }} />
+                      ))}
+                    </Box>
+                    <Typography sx={{ color: '#e0e0ff', fontSize: '1rem', fontStyle: 'italic', mb: 4, lineHeight: 1.6 }}>
+                      {t.text}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Avatar sx={{ width: 40, height: 40, background: '#6c63ff' }}>{t.name.charAt(0)}</Avatar>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700, color: '#fff', fontSize: '0.9rem' }}>{t.name}</Typography>
+                        <Typography sx={{ color: '#8888aa', fontSize: '0.8rem' }}>{t.title}</Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+
+        {/* CTA Banner */}
+        <Box
+          sx={{
+            borderRadius: '24px',
+            background: 'linear-gradient(135deg, rgba(108, 99, 255, 0.1) 0%, rgba(0, 200, 150, 0.05) 100%)',
+            border: '1px solid rgba(108, 99, 255, 0.2)',
+            p: { xs: 6, md: 10 },
+            textAlign: 'center',
+            mb: 10,
+          }}
+        >
+          <Typography
+            variant="h2"
+            sx={{
+              fontWeight: 800,
+              color: '#ffffff',
+              mb: 3,
+              fontSize: { xs: '2rem', md: '3rem' },
+            }}
+          >
+            Start Understanding
+            <br />
+            Your Repos
+          </Typography>
+          <Typography sx={{ color: '#8888aa', mb: 5, fontSize: '1.1rem' }}>
+            Join 10,000+ developers who already use RepoMind to build better software.
+          </Typography>
+          
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              theme="filled_black"
+              size="large"
+              shape="pill"
+            />
+          </Box>
+        </Box>
+
+        {/* Simple Footer */}
+        <Box sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', pt: 6, pb: 4 }}>
+          <Grid container spacing={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #6c63ff 0%, #00c896 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AutoAwesomeIcon sx={{ color: '#fff', fontSize: 16 }} />
+                </Box>
+                <Typography sx={{ fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+                  RepoMind
+                </Typography>
+              </Box>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem' }}>
+                Understand any codebase instantly.
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 6, md: 2 }}>
+              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 2, fontSize: '0.9rem' }}>Product</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Features</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Integrations</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Pricing</Typography>
+            </Grid>
+            <Grid size={{ xs: 6, md: 2 }}>
+              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 2, fontSize: '0.9rem' }}>Resources</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Documentation</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Blog</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Community</Typography>
+            </Grid>
+            <Grid size={{ xs: 6, md: 2 }}>
+              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 2, fontSize: '0.9rem' }}>Company</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>About</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Contact</Typography>
+              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Careers</Typography>
+            </Grid>
+          </Grid>
+          <Box sx={{ mt: 8, textAlign: 'center' }}>
+            <Typography sx={{ color: '#555577', fontSize: '0.8rem' }}>
+              © 2026 RepoMind Inc. All rights reserved.
+            </Typography>
+          </Box>
         </Box>
       </Container>
     </Box>
