@@ -9,6 +9,11 @@ import CodeIcon from '@mui/icons-material/Code';
 import InsightsIcon from '@mui/icons-material/Insights';
 import SecurityIcon from '@mui/icons-material/Security';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import ChatIcon from '@mui/icons-material/Chat';
+import HistoryIcon from '@mui/icons-material/History';
+import StorageIcon from '@mui/icons-material/Storage';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import BoltIcon from '@mui/icons-material/Bolt';
 import { googleLogin } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -125,9 +130,13 @@ export const LandingPage: React.FC = () => {
 
             {/* Navigation links */}
             <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 4 }}>
-              {['Features', 'How it works', 'Testimonials', 'Pricing'].map((item) => (
+              {[
+                { label: 'Features', id: 'features' },
+                { label: 'How it works', id: 'how-it-works' },
+              ].map((item) => (
                 <Typography
-                  key={item}
+                  key={item.id}
+                  onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' })}
                   sx={{
                     fontSize: '0.9rem',
                     color: '#a0a0cc',
@@ -137,7 +146,7 @@ export const LandingPage: React.FC = () => {
                     '&:hover': { color: '#ffffff' },
                   }}
                 >
-                  {item}
+                  {item.label}
                 </Typography>
               ))}
             </Box>
@@ -205,25 +214,6 @@ export const LandingPage: React.FC = () => {
         <Grid container spacing={6} sx={{ alignItems: 'center' }}>
           {/* Left Hero Text */}
           <Grid size={{ xs: 12, md: 6 }}>
-            {/* Version Pill */}
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 1,
-                background: 'rgba(108, 99, 255, 0.12)',
-                border: '1px solid rgba(108, 99, 255, 0.25)',
-                borderRadius: '50px',
-                px: 2,
-                py: 0.6,
-                mb: 3,
-              }}
-            >
-              <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: '#6c63ff', boxShadow: '0 0 8px #6c63ff' }} />
-              <Typography sx={{ fontSize: '0.8rem', color: '#b0b0ee', fontWeight: 600 }}>
-                RepoMind 2.0 is now live
-              </Typography>
-            </Box>
 
             {/* Title */}
             <Typography
@@ -332,7 +322,7 @@ export const LandingPage: React.FC = () => {
       {/* New Sections Container */}
       <Container maxWidth="lg" sx={{ pb: { xs: 10, md: 16 } }}>
         {/* Features Section */}
-        <Box sx={{ mt: 10, mb: 20 }}>
+        <Box id="features" sx={{ mt: 10, mb: 20 }}>
           <Typography
             variant="h3"
             sx={{
@@ -343,7 +333,7 @@ export const LandingPage: React.FC = () => {
               fontSize: { xs: '2rem', sm: '2.5rem' },
             }}
           >
-            Unpack complexity instantly
+            Everything your team needs to master any codebase
           </Typography>
           <Typography
             sx={{
@@ -354,43 +344,43 @@ export const LandingPage: React.FC = () => {
               mx: 'auto',
             }}
           >
-            Everything you need to understand unfamiliar codebases without spending days reading source files.
+            Stop wasting hours tracing spaghetti code. Get instant, AI-powered understanding of architecture, intent, and impact.
           </Typography>
 
           <Grid container spacing={3}>
             {[
               {
-                icon: <AutoAwesomeIcon sx={{ color: '#6c63ff' }} />,
+                icon: <ChatIcon sx={{ color: '#6c63ff' }} />,
                 title: 'Repository Intelligence',
-                desc: 'Let our AI scan the entire codebase to understand dependencies, patterns, and architecture.',
+                desc: 'Chat naturally with an entire GitHub repository. Understand authentication, APIs, business logic, dependencies, and workflows instantly.',
+                tag: undefined
               },
               {
-                icon: <CodeIcon sx={{ color: '#6c63ff' }} />,
-                title: 'Dependency Discovery',
-                desc: 'See exactly how different files and modules rely on one another before making a change.',
+                icon: <HistoryIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Repository Memory',
+                desc: 'Understand why decisions were made by analyzing commits, pull requests, issues, and documentation in a unified knowledge graph.',
+                tag: '⭐ Flagship Feature'
               },
               {
                 icon: <AccountTreeIcon sx={{ color: '#6c63ff' }} />,
-                title: 'Architecture Intelligence',
-                desc: 'Visual representations of your codebase to quickly grasp the overarching structure.',
+                title: 'Impact Analysis',
+                desc: 'Before changing code, instantly understand what APIs, services, and modules may be affected across the system.',
+                tag: undefined
               },
               {
                 icon: <InsightsIcon sx={{ color: '#6c63ff' }} />,
-                title: 'Impact Analysis',
-                desc: 'Understand what will break if you modify a certain file or update a specific module.',
+                title: 'Repository Health',
+                desc: 'Monitor code quality, documentation, maintainability, technical debt, dependency health, and overall repository metrics.',
+                tag: undefined
               },
               {
-                icon: <SecurityIcon sx={{ color: '#6c63ff' }} />,
-                title: 'Semantic Code Search',
-                desc: 'Search for what code does, not just exact keyword matches. Find logic naturally.',
+                icon: <AutoAwesomeIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Productivity Intelligence',
+                desc: 'Automatically generate release notes, changelogs, sprint summaries, and documentation from your repository\'s history.',
+                tag: undefined
               },
-              {
-                icon: <GitHubIcon sx={{ color: '#6c63ff' }} />,
-                title: 'Technical Debt',
-                desc: 'Automatically identify complex files, large files, and tightly coupled modules.',
-              },
-            ].map((f) => (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={f.title}>
+            ].map((f, index) => (
+              <Grid size={{ xs: 12, md: index < 2 ? 6 : 4 }} key={f.title}>
                 <Card
                   sx={{
                     height: '100%',
@@ -398,6 +388,7 @@ export const LandingPage: React.FC = () => {
                     border: '1px solid rgba(255, 255, 255, 0.05)',
                     borderRadius: '16px',
                     transition: 'all 0.3s ease',
+                    position: 'relative',
                     '&:hover': {
                       border: '1px solid rgba(108, 99, 255, 0.3)',
                       background: 'rgba(108, 99, 255, 0.05)',
@@ -405,25 +396,30 @@ export const LandingPage: React.FC = () => {
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 3 }}>
+                  <CardContent sx={{ p: 4 }}>
+                    {f.tag && (
+                      <Box sx={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255, 215, 0, 0.1)', color: '#ffd700', px: 1.5, py: 0.5, borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {f.tag}
+                      </Box>
+                    )}
                     <Box
                       sx={{
-                        width: 44,
-                        height: 44,
+                        width: 48,
+                        height: 48,
                         borderRadius: '12px',
                         background: 'rgba(108, 99, 255, 0.1)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        mb: 2,
+                        mb: 3,
                       }}
                     >
                       {f.icon}
                     </Box>
-                    <Typography sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff', mb: 1 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '1.15rem', color: '#fff', mb: 1.5 }}>
                       {f.title}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.85rem', color: '#8888aa', lineHeight: 1.6 }}>
+                    <Typography sx={{ fontSize: '0.9rem', color: '#8888aa', lineHeight: 1.6 }}>
                       {f.desc}
                     </Typography>
                   </CardContent>
@@ -434,7 +430,7 @@ export const LandingPage: React.FC = () => {
         </Box>
 
         {/* Workflow Section */}
-        <Box sx={{ mb: 20 }}>
+        <Box id="how-it-works" sx={{ mb: 20 }}>
           <Typography
             variant="h3"
             sx={{
@@ -445,197 +441,144 @@ export const LandingPage: React.FC = () => {
               fontSize: { xs: '2rem', sm: '2.5rem' },
             }}
           >
-            From URL to understanding in seconds
+            From repository URL to deep intelligence
           </Typography>
           <Typography
             sx={{
               textAlign: 'center',
               color: '#8888aa',
-              mb: 8,
+              mb: 12,
               maxWidth: 600,
               mx: 'auto',
             }}
           >
-            No complex setup, no configs. Just paste a URL and let RepoMind do the heavy lifting.
+            Zero configuration. Total comprehension.
           </Typography>
 
-          <Box sx={{ maxWidth: 800, mx: 'auto', pl: { xs: 2, md: 10 } }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'center', md: 'flex-start' }, position: 'relative', mb: 10, maxWidth: 1000, mx: 'auto', gap: { xs: 4, md: 0 } }}>
+            {/* The horizontal connecting line */}
+            <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'absolute', top: 32, left: '10%', right: '10%', height: '1px', background: 'linear-gradient(90deg, rgba(108, 99, 255, 0) 0%, rgba(108, 99, 255, 0.4) 50%, rgba(108, 99, 255, 0) 100%)', zIndex: 0 }} />
+            
             {[
               {
-                icon: '🔗',
-                title: 'Paste URL',
-                desc: 'Paste any GitHub repository URL. We support public and private repositories securely.',
+                icon: <GitHubIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Connect GitHub',
+                desc: 'Paste URL or install app',
               },
               {
-                icon: '✨',
-                title: 'Analyze & Build Graph',
-                desc: 'Our engine parses files, ASTs, and dependencies to build a comprehensive knowledge graph.',
+                icon: <CodeIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Repository Parser',
+                desc: 'AST & dependency analysis',
               },
               {
-                icon: '👁',
-                title: 'Understand Visually',
-                desc: 'Explore the architecture, jump between modules, and see how everything is connected.',
+                icon: <StorageIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Knowledge Base',
+                desc: 'Vector graph generation',
               },
               {
-                icon: '💬',
-                title: 'Chat with the Codebase',
-                desc: 'Ask questions like "Where is the auth logic?" and get accurate, context-aware answers.',
+                icon: <PsychologyIcon sx={{ color: '#6c63ff' }} />,
+                title: 'AI Intelligence',
+                desc: 'Contextual processing',
               },
-            ].map((step, index) => (
-              <Box key={index} sx={{ display: 'flex', gap: 4, mb: 6, position: 'relative' }}>
-                {index !== 3 && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 48,
-                      left: 23,
-                      bottom: -32,
-                      width: 2,
-                      background: 'rgba(255, 255, 255, 0.1)',
-                    }}
-                  />
-                )}
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '12px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.25rem',
-                    flexShrink: 0,
-                    zIndex: 1,
-                  }}
-                >
-                  {step.icon}
+              {
+                icon: <BoltIcon sx={{ color: '#6c63ff' }} />,
+                title: 'Developer Insights',
+                desc: 'Instant expert answers',
+              }
+            ].map((step, idx) => (
+              <Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', zIndex: 1, flex: 1, px: 2 }}>
+                <Box sx={{ position: 'relative', mb: 3 }}>
+                  <Box sx={{ width: 64, height: 64, borderRadius: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.3s', '&:hover': { transform: 'scale(1.05)', border: '1px solid rgba(108, 99, 255, 0.3)', background: 'rgba(108, 99, 255, 0.05)' } }}>
+                    {step.icon}
+                  </Box>
+                  <Box sx={{ position: 'absolute', top: -8, right: -8, width: 24, height: 24, borderRadius: '50%', background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', color: '#b0b0ee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>
+                    {idx + 1}
+                  </Box>
                 </Box>
-                <Box>
-                  <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', mb: 1, mt: 1 }}>
-                    {step.title}
-                  </Typography>
-                  <Typography sx={{ color: '#8888aa' }}>{step.desc}</Typography>
-                </Box>
+                <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', mb: 1 }}>{step.title}</Typography>
+                <Typography sx={{ fontSize: '0.8rem', color: '#8888aa', lineHeight: 1.4 }}>{step.desc}</Typography>
               </Box>
             ))}
           </Box>
-        </Box>
 
-        {/* Testimonials */}
-        <Box sx={{ mb: 20 }}>
-          <Typography
-            variant="h3"
-            sx={{
-              textAlign: 'center',
-              fontWeight: 800,
-              color: '#ffffff',
-              mb: 8,
-              fontSize: { xs: '2rem', sm: '2.5rem' },
-            }}
-          >
-            Loved by engineering leaders
-          </Typography>
-
-          <Grid container spacing={4}>
-            {[
-              {
-                name: 'Jane Doe',
-                title: 'VP of Engineering, Acme Corp',
-                text: '"RepoMind has cut our onboarding time in half. Being able to visualize the whole app before reading a single file is a game-changer."',
-              },
-              {
-                name: 'Michael Johnson',
-                title: 'Engineering Manager, TechFlow',
-                text: '"It is like having a senior engineer explain the architecture to you. I use it for every PR review now."',
-              },
-              {
-                name: 'Sarah Williams',
-                title: 'Lead Developer, StartUp Inc',
-                text: '"The visual dependency graph is incredible. It helped us identify circular dependencies we didn't even know we had."',
-              },
-            ].map((t, index) => (
-              <Grid size={{ xs: 12, md: 4 }} key={index}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    borderRadius: '16px',
-                  }}
-                >
-                  <CardContent sx={{ p: 4 }}>
-                    <Box sx={{ display: 'flex', gap: 0.5, mb: 2 }}>
-                      {[...Array(5)].map((_, i) => (
-                        <AutoAwesomeIcon key={i} sx={{ color: '#00c896', fontSize: 16 }} />
-                      ))}
-                    </Box>
-                    <Typography sx={{ color: '#e0e0ff', fontSize: '1rem', fontStyle: 'italic', mb: 4, lineHeight: 1.6 }}>
-                      {t.text}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar sx={{ width: 40, height: 40, background: '#6c63ff' }}>{t.name.charAt(0)}</Avatar>
-                      <Box>
-                        <Typography sx={{ fontWeight: 700, color: '#fff', fontSize: '0.9rem' }}>{t.name}</Typography>
-                        <Typography sx={{ color: '#8888aa', fontSize: '0.8rem' }}>{t.title}</Typography>
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-
-        {/* CTA Banner */}
-        <Box
-          sx={{
-            borderRadius: '24px',
-            background: 'linear-gradient(135deg, rgba(108, 99, 255, 0.1) 0%, rgba(0, 200, 150, 0.05) 100%)',
-            border: '1px solid rgba(108, 99, 255, 0.2)',
-            p: { xs: 6, md: 10 },
-            textAlign: 'center',
-            mb: 10,
-          }}
-        >
-          <Typography
-            variant="h2"
-            sx={{
-              fontWeight: 800,
-              color: '#ffffff',
-              mb: 3,
-              fontSize: { xs: '2rem', md: '3rem' },
-            }}
-          >
-            Start Understanding
-            <br />
-            Your Repos
-          </Typography>
-          <Typography sx={{ color: '#8888aa', mb: 5, fontSize: '1.1rem' }}>
-            Join 10,000+ developers who already use RepoMind to build better software.
-          </Typography>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              theme="filled_black"
-              size="large"
-              shape="pill"
-            />
+          <Box sx={{ textAlign: 'center', mt: 16 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: '#fff', mb: 2, fontSize: { xs: '1.75rem', sm: '2rem' } }}>Ask anything about the codebase</Typography>
+            <Typography sx={{ color: '#8888aa', maxWidth: 600, mx: 'auto', fontSize: '0.95rem' }}>Natural language queries, instant expert answers backed by real code references.</Typography>
           </Box>
         </Box>
 
-        {/* Simple Footer */}
-        <Box sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', pt: 6, pb: 4 }}>
-          <Grid container spacing={4}>
+        {/* Modern CTA Banner */}
+        <Box
+          id="pricing"
+          sx={{
+            position: 'relative',
+            borderRadius: '32px',
+            background: '#0d0d14',
+            border: '1px solid rgba(108, 99, 255, 0.15)',
+            p: { xs: 8, md: 12 },
+            textAlign: 'center',
+            mb: 12,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Subtle Glow Background */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '100%',
+              height: '100%',
+              background: 'radial-gradient(circle at center, rgba(108, 99, 255, 0.15) 0%, rgba(108, 99, 255, 0) 70%)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 900,
+                color: '#ffffff',
+                mb: 3,
+                fontSize: { xs: '2.5rem', md: '3.5rem' },
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Start Understanding
+              <br />
+              <Box component="span" sx={{ background: 'linear-gradient(135deg, #6c63ff 0%, #00c896 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Your Repositories
+              </Box>
+            </Typography>
+            <Typography sx={{ color: '#8888aa', mb: 6, fontSize: '1.15rem', maxWidth: 500, mx: 'auto' }}>
+              Join thousands of engineering teams building better software faster with RepoMind.
+            </Typography>
+            
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Box sx={{ p: 0.5, background: 'rgba(255,255,255,0.05)', borderRadius: '50px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="filled_black"
+                  size="large"
+                  shape="pill"
+                />
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Modernized Footer */}
+        <Box sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', pt: 8, pb: 6 }}>
+          <Grid container spacing={6}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <Box
                   sx={{
-                    width: 30,
-                    height: 30,
+                    width: 32,
+                    height: 32,
                     borderRadius: '8px',
                     background: 'linear-gradient(135deg, #6c63ff 0%, #00c896 100%)',
                     display: 'flex',
@@ -643,39 +586,48 @@ export const LandingPage: React.FC = () => {
                     justifyContent: 'center',
                   }}
                 >
-                  <AutoAwesomeIcon sx={{ color: '#fff', fontSize: 16 }} />
+                  <AutoAwesomeIcon sx={{ color: '#fff', fontSize: 18 }} />
                 </Box>
-                <Typography sx={{ fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+                <Typography sx={{ fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontSize: '1.2rem' }}>
                   RepoMind
                 </Typography>
               </Box>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem' }}>
-                Understand any codebase instantly.
+              <Typography sx={{ color: '#8888aa', fontSize: '0.95rem', lineHeight: 1.6, maxWidth: 250 }}>
+                The AI-powered codebase intelligence platform for modern engineering teams.
               </Typography>
             </Grid>
             <Grid size={{ xs: 6, md: 2 }}>
-              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 2, fontSize: '0.9rem' }}>Product</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Features</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Integrations</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Pricing</Typography>
+              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 3, fontSize: '0.95rem' }}>Product</Typography>
+              {['Features', 'Integrations', 'Pricing', 'Changelog'].map((link) => (
+                <Typography key={link} sx={{ color: '#8888aa', fontSize: '0.9rem', mb: 2, cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: '#6c63ff' } }}>
+                  {link}
+                </Typography>
+              ))}
             </Grid>
             <Grid size={{ xs: 6, md: 2 }}>
-              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 2, fontSize: '0.9rem' }}>Resources</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Documentation</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Blog</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Community</Typography>
+              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 3, fontSize: '0.95rem' }}>Resources</Typography>
+              {['Documentation', 'API Reference', 'Blog', 'Community'].map((link) => (
+                <Typography key={link} sx={{ color: '#8888aa', fontSize: '0.9rem', mb: 2, cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: '#6c63ff' } }}>
+                  {link}
+                </Typography>
+              ))}
             </Grid>
             <Grid size={{ xs: 6, md: 2 }}>
-              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 2, fontSize: '0.9rem' }}>Company</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>About</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Contact</Typography>
-              <Typography sx={{ color: '#8888aa', fontSize: '0.85rem', mb: 1 }}>Careers</Typography>
+              <Typography sx={{ color: '#fff', fontWeight: 600, mb: 3, fontSize: '0.95rem' }}>Company</Typography>
+              {['About', 'Contact', 'Careers', 'Legal'].map((link) => (
+                <Typography key={link} sx={{ color: '#8888aa', fontSize: '0.9rem', mb: 2, cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: '#6c63ff' } }}>
+                  {link}
+                </Typography>
+              ))}
             </Grid>
           </Grid>
-          <Box sx={{ mt: 8, textAlign: 'center' }}>
-            <Typography sx={{ color: '#555577', fontSize: '0.8rem' }}>
+          <Box sx={{ mt: 10, pt: 4, borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+            <Typography sx={{ color: '#555577', fontSize: '0.85rem' }}>
               © 2026 RepoMind Inc. All rights reserved.
             </Typography>
+            <Box sx={{ display: 'flex', gap: 3 }}>
+              <GitHubIcon sx={{ color: '#555577', cursor: 'pointer', '&:hover': { color: '#fff' } }} />
+            </Box>
           </Box>
         </Box>
       </Container>

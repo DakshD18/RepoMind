@@ -8,7 +8,9 @@ const api = axios.create({
   },
 });
 
-// Attach JWT token to every request
+// Attach JWT token to every request // An interceptor is code that runs 
+// before every request
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
