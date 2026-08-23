@@ -13,7 +13,6 @@ venv/
 env/
 .venv/
 *.env
-!backend/.env
 
 # Django
 db.sqlite3
