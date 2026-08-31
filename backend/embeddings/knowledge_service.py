@@ -1,47 +1,72 @@
 """
-Knowledge Service (Phase 2).
+Knowledge Service (Phase 2.1 — RAG Accuracy Upgrade).
 
-Handles:
-1. index_repository(repository) — parse, embed, and persist all code chunks.
-2. search_code(repository_id, query_text, top_k) — pgvector cosine distance search,
-   strictly scoped by repository_id.
+Changes over Phase 2:
+1. Two-stage hybrid retrieval (search_code_hybrid):
+   - Stage 1: Retrieve RAG_RETRIEVAL_CANDIDATES (default 20) semantic candidates.
+   - Stage 1b: Exact identifier/keyword search via DB ILIKE queries.
+   - Merge and deduplicate into a unified candidate pool.
+   The reranker (rag/reranker.py) then selects the best RAG_CONTEXT_TOP_K.
+
+2. Configurable retrieval settings via environment variables:
+   RAG_RETRIEVAL_CANDIDATES = 20  (semantic stage 1 count)
+   RAG_CONTEXT_TOP_K        = 8   (final chunks after reranking)
+   RAG_MIN_SIMILARITY       = 0.18
+
+3. Keyword/identifier search on CodeChunk.symbol_name, class_name, file_path, content.
+
+4. Embedding text (format_chunk_for_embedding) used for indexing so that structured
+   metadata (file, class, function, type) is embedded alongside code.
+
+5. Repository isolation: ALL queries are strictly scoped by repository_id.
+   A query for Repository A NEVER retrieves chunks from Repository B.
+
+6. search_code() preserved for backward compatibility (used in tests);
+   internally delegates to the new hybrid pipeline.
 
 pgvector Strategy
 -----------------
-We store embeddings as vector(384) columns. The migration applies the pgvector
-extension and converts the column using raw SQL.
-
+We store embeddings as vector(384) columns (applied via raw SQL migration).
 Vector search uses:
-    ORDER BY embedding <=> query_vec::vector
-which is pgvector's native cosine distance operator, executed fully in the database.
-This avoids loading all embeddings into Python and scales with repository size.
+    ORDER BY embedding_vec <=> query_vec::vector
+(pgvector's native cosine distance operator, fully in the database.)
 
 SQLite Fallback
 ---------------
-During local development with SQLite, pgvector is unavailable. In this case we
-fall back to Python-side cosine similarity using numpy. The code auto-detects the
-database backend and picks the correct search strategy at query time.
+During local development with SQLite, pgvector is unavailable. Falls back to
+Python-side cosine similarity using numpy.
 """
 
 import logging
-import json
+import os
+import re
 
 from django.conf import settings
 from django.db import connection
+from django.db.models import Q
 
 from embeddings.models import CodeChunk
 from embeddings.embedding_service import embed_text, embed_batch, cosine_similarity
-from parser.chunker import chunk_repository
+from parser.chunker import chunk_repository, format_chunk_for_embedding
 
 logger = logging.getLogger(__name__)
 
-# Minimum similarity to include a chunk in search results.
-# Keeps very-low-relevance noise out of the Gemini context.
-MIN_SIMILARITY = 0.20
+# ─── Configuration ─────────────────────────────────────────────────────────────
 
-# How many chunks to retrieve per query (configurable)
-DEFAULT_TOP_K = 6
+# Stage 1 semantic retrieval count
+RAG_RETRIEVAL_CANDIDATES = int(os.getenv('RAG_RETRIEVAL_CANDIDATES', '20'))
+# Final top-k after reranking (sent to Gemini context)
+RAG_CONTEXT_TOP_K = int(os.getenv('RAG_CONTEXT_TOP_K', '8'))
+# Minimum cosine similarity to include a candidate
+MIN_SIMILARITY = float(os.getenv('RAG_MIN_SIMILARITY', '0.18'))
+# Keyword search candidate count
+KEYWORD_CANDIDATES = int(os.getenv('RAG_KEYWORD_CANDIDATES', '10'))
 
+# Legacy alias used by old tests
+DEFAULT_TOP_K = RAG_CONTEXT_TOP_K
+
+
+# ─── DB Backend Detection ──────────────────────────────────────────────────────
 
 def _is_postgres() -> bool:
     """Return True if the active DB backend is PostgreSQL."""
@@ -61,54 +86,62 @@ def _pgvector_available() -> bool:
         return False
 
 
+# ─── Indexing ──────────────────────────────────────────────────────────────────
+
 def index_repository(repository) -> None:
     """
     Parse the repository's cloned directory, generate embeddings for all code chunks,
     and persist them as CodeChunk records.
 
+    Phase 2.1: Uses enriched embedding_text (file + class + function + code) from
+    format_chunk_for_embedding() so that retrieval benefits from structured metadata.
+
     Called explicitly via POST /api/repositories/<id>/index/.
     NEVER called automatically from the chat endpoint.
-
-    Sets repository.is_indexed = True and repository.index_status = 'indexed' on success,
-    or 'failed' on error.
     """
     from django.conf import settings as s
 
-    # Mark as indexing
     repository.index_status = 'indexing'
     repository.index_error = ''
     repository.save(update_fields=['index_status', 'index_error'])
 
     try:
-        # Resolve the cloned repo directory
         repo_dir = str(s.CLONED_REPOS_DIR / f'{repository.owner}_{repository.name}_{repository.id}')
         logger.info('Indexing repository %s from %s', repository, repo_dir)
 
-        # 1. Parse into chunks
-        chunks = chunk_repository(repo_dir)
+        # 1. Parse into chunks (enriched with embedding_text and class_name)
+        chunks = chunk_repository(repo_dir, repo_name=repository.name)
         if not chunks:
             logger.warning('No chunks extracted from %s', repo_dir)
 
-        # 2. Delete old chunks for this repository (re-index is clean)
+        # 2. Delete old chunks for this repository (clean re-index)
         deleted, _ = CodeChunk.objects.filter(repository=repository).delete()
         logger.info('Deleted %d stale chunks for repo %d', deleted, repository.id)
 
-        # 3. Embed in batches and persist
-        contents = [c['content'] for c in chunks]
-        embeddings = embed_batch(contents)
+        # 3. Build embedding texts (use structured text, not raw code)
+        embedding_texts = []
+        for c in chunks:
+            text = c.get('embedding_text') or format_chunk_for_embedding(c, repo_name=repository.name)
+            embedding_texts.append(text)
 
+        # 4. Embed in batches
+        embeddings = embed_batch(embedding_texts)
+
+        # 5. Persist
         batch_size = 200
         records = []
-        for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+        for chunk, emb, emb_text in zip(chunks, embeddings, embedding_texts):
             records.append(CodeChunk(
                 repository=repository,
                 file_path=chunk['file_path'],
                 symbol_name=chunk.get('symbol_name', ''),
+                class_name=chunk.get('class_name', ''),
                 symbol_type=chunk.get('symbol_type', 'block'),
                 start_line=chunk['start_line'],
                 end_line=chunk['end_line'],
                 content=chunk['content'],
-                embedding=emb,     # stored as JSON list
+                embedding_text=emb_text,
+                embedding=emb,
             ))
             if len(records) >= batch_size:
                 CodeChunk.objects.bulk_create(records)
@@ -119,11 +152,11 @@ def index_repository(repository) -> None:
         total = CodeChunk.objects.filter(repository=repository).count()
         logger.info('Indexed %d chunks for repo %d', total, repository.id)
 
-        # 4. If using PostgreSQL + pgvector, convert JSON → vector column
+        # 6. If using PostgreSQL + pgvector, convert JSON → vector column
         if _is_postgres():
             _apply_pgvector_column(repository)
 
-        # 5. Mark success
+        # 7. Mark success
         repository.is_indexed = True
         repository.index_status = 'indexed'
         repository.save(update_fields=['is_indexed', 'index_status', 'index_error'])
@@ -141,9 +174,6 @@ def _apply_pgvector_column(repository) -> None:
     """
     After bulk_create (which writes embedding as JSON text),
     run a raw SQL UPDATE to cast the JSON array into a pgvector vector column.
-
-    This only applies when the DB is PostgreSQL with pgvector installed.
-    Falls back silently on SQLite.
     """
     if not _pgvector_available():
         return
@@ -162,45 +192,127 @@ def _apply_pgvector_column(repository) -> None:
         logger.warning('pgvector column update skipped: %s', exc)
 
 
-def search_code(repository_id: int, query_text: str, top_k: int = DEFAULT_TOP_K) -> list[dict]:
-    """
-    Retrieve the top_k most relevant code chunks for a query, strictly scoped to
-    a single repository.
+# ─── Keyword / Identifier Search ───────────────────────────────────────────────
 
-    Uses pgvector native cosine distance (<=> operator) when PostgreSQL + pgvector
-    is available; otherwise falls back to Python-side cosine similarity for SQLite
-    development.
-
-    Returns a list of dicts:
-        {
-            'file_path': str,
-            'symbol_name': str,
-            'symbol_type': str,
-            'start_line': int,
-            'end_line': int,
-            'content': str,
-            'similarity': float,
-        }
+def _extract_search_tokens(query: str) -> list[str]:
     """
-    if not query_text.strip():
+    Extract tokens from the query that are likely to be code identifiers,
+    file names, or significant keywords.
+    Returns lowercase tokens.
+    """
+    tokens = set()
+
+    _STOP = {
+        'where', 'what', 'which', 'how', 'when', 'why', 'does', 'this', 'that', 'with',
+        'from', 'into', 'used', 'using', 'use', 'uses',
+        'defined', 'define', 'defines', 'defining', 'definition',
+        'created', 'create', 'creates', 'creating', 'creation',
+        'called', 'call', 'calls', 'calling',
+        'find', 'show', 'list', 'explain', 'describe',
+        'implement', 'implemented', 'implementing', 'implementation', 'implementations',
+        'handle', 'handles', 'handled', 'handling', 'handler', 'handlers',
+        'generate', 'generates', 'generated', 'generating', 'generation', 'generat',
+        'function', 'functions', 'class', 'classes', 'method', 'methods',
+        'file', 'files', 'module', 'modules', 'endpoint', 'endpoints', 'route', 'routes',
+        'view', 'views', 'model', 'models', 'service', 'services', 'component', 'components',
+        'page', 'pages', 'code', 'logic', 'work', 'works', 'working',
+        'should', 'return', 'returns', 'returning',
+        'repository', 'repo', 'project', 'application', 'app', 'system', 'data',
+        'the', 'and', 'for', 'not', 'but', 'are', 'was', 'were', 'been',
+        'have', 'has', 'had', 'about', 'some', 'there', 'their', 'them',
+    }
+
+    for m in re.finditer(r'[a-zA-Z_][a-zA-Z0-9_]{2,}', query):
+        w = m.group(0).lower()
+        if w not in _STOP:
+            tokens.add(w)
+            if w.endswith('ies') and len(w) > 3:
+                tokens.add(w[:-3] + 'y')
+            elif w.endswith('es') and len(w) > 3:
+                tokens.add(w[:-2])
+            elif w.endswith('s') and len(w) > 2:
+                tokens.add(w[:-1])
+            if w.endswith('ing') and len(w) > 4:
+                tokens.add(w[:-3])
+                tokens.add(w[:-3] + 'e')
+            if w.endswith('ed') and len(w) > 3:
+                tokens.add(w[:-2])
+                tokens.add(w[:-1])
+
+    # API routes like /api/auth/google/
+    for m in re.finditer(r'/[a-zA-Z][a-zA-Z0-9/_-]+/', query):
+        parts = [p.lower() for p in m.group(0).split('/') if p]
+        tokens.update(parts)
+
+    tokens -= _STOP
+
+    return [t for t in tokens if len(t) >= 3]
+
+
+def _keyword_search(repository_id: int, query: str, limit: int) -> list[dict]:
+    """
+    Retrieve chunks via exact/partial text matching on symbol_name, class_name,
+    file_path, and content. Strictly scoped by repository_id.
+
+    Returns chunk dicts with similarity=-1 (no vector score; will be set by reranker).
+    """
+    tokens = _extract_search_tokens(query)
+    if not tokens:
         return []
 
-    query_vec = embed_text(query_text)
+    # Build OR query across relevant fields
+    filter_q = Q(repository_id=repository_id)
+    text_q = Q()
+    for token in tokens:
+        text_q |= Q(symbol_name__icontains=token)
+        text_q |= Q(class_name__icontains=token)
+        text_q |= Q(file_path__icontains=token)
 
-    if _pgvector_available():
-        return _search_pgvector(repository_id, query_vec, top_k)
-    else:
-        return _search_python_cosine(repository_id, query_vec, top_k)
+    # For overview queries, also ensure root documentation and manifest files are in candidate pool
+    from rag.reranker import detect_query_type, QueryType
+    if detect_query_type(query) == QueryType.OVERVIEW:
+        doc_q = (
+            Q(file_path__iexact='readme.md') |
+            Q(file_path__icontains='readme') |
+            Q(file_path__iexact='agents.md') |
+            Q(file_path__iexact='package.json') |
+            Q(file_path__iexact='pyproject.toml') |
+            Q(file_path__icontains='app.tsx') |
+            Q(file_path__icontains='main.py')
+        )
+        text_q |= doc_q
+
+    qs = (
+        CodeChunk.objects
+        .filter(filter_q & text_q)
+        .values('id', 'file_path', 'symbol_name', 'class_name',
+                'symbol_type', 'start_line', 'end_line', 'content')[:limit]
+    )
+
+    results = []
+    for row in qs:
+        results.append({
+            'id': row['id'],
+            'file_path': row['file_path'],
+            'symbol_name': row['symbol_name'],
+            'class_name': row['class_name'],
+            'symbol_type': row['symbol_type'],
+            'start_line': row['start_line'],
+            'end_line': row['end_line'],
+            'content': row['content'],
+            'similarity': 0.0,   # Will be overridden if also in semantic results
+            'from_keyword': True,
+        })
+
+    return results
 
 
-def _search_pgvector(repository_id: int, query_vec: list[float], top_k: int) -> list[dict]:
+# ─── Vector Search ─────────────────────────────────────────────────────────────
+
+def _search_pgvector(repository_id: int, query_vec: list[float], limit: int) -> list[dict]:
     """
     Database-side cosine distance search using pgvector.
-
-    The <=> operator computes cosine *distance* (1 - similarity), so we convert:
-        similarity = 1 - distance
-
-    This never loads embeddings into Python memory; the database does all the work.
+    similarity = 1 - cosine_distance (using <=> operator).
     """
     vec_literal = '[' + ','.join(str(v) for v in query_vec) + ']'
 
@@ -209,6 +321,7 @@ def _search_pgvector(repository_id: int, query_vec: list[float], top_k: int) -> 
             id,
             file_path,
             symbol_name,
+            class_name,
             symbol_type,
             start_line,
             end_line,
@@ -223,37 +336,38 @@ def _search_pgvector(repository_id: int, query_vec: list[float], top_k: int) -> 
     """
     try:
         with connection.cursor() as cursor:
-            cursor.execute(sql, [vec_literal, repository_id, vec_literal, MIN_SIMILARITY, vec_literal, top_k])
+            cursor.execute(sql, [vec_literal, repository_id, vec_literal, MIN_SIMILARITY, vec_literal, limit])
             rows = cursor.fetchall()
 
         return [
             {
+                'id': row[0],
                 'file_path': row[1],
                 'symbol_name': row[2],
-                'symbol_type': row[3],
-                'start_line': row[4],
-                'end_line': row[5],
-                'content': row[6],
-                'similarity': float(row[7]),
+                'class_name': row[3],
+                'symbol_type': row[4],
+                'start_line': row[5],
+                'end_line': row[6],
+                'content': row[7],
+                'similarity': float(row[8]),
             }
             for row in rows
         ]
     except Exception as exc:
         logger.error('pgvector search failed: %s — falling back to Python', exc)
-        return _search_python_cosine(repository_id, embed_text(''), top_k)
+        return _search_python_cosine(repository_id, query_vec, limit)
 
 
-def _search_python_cosine(repository_id: int, query_vec: list[float], top_k: int) -> list[dict]:
+def _search_python_cosine(repository_id: int, query_vec: list[float], limit: int) -> list[dict]:
     """
     Python-side cosine similarity fallback (used with SQLite in local dev).
-
-    Loads all embeddings for the repository into memory and computes similarities.
-    Acceptable for small repos; use pgvector for production scale.
+    Loads all embeddings for the repository into memory.
     """
     chunks = CodeChunk.objects.filter(
         repository_id=repository_id,
         embedding__isnull=False,
-    ).values('file_path', 'symbol_name', 'symbol_type', 'start_line', 'end_line', 'content', 'embedding')
+    ).values('id', 'file_path', 'symbol_name', 'class_name',
+             'symbol_type', 'start_line', 'end_line', 'content', 'embedding')
 
     scored = []
     for chunk in chunks:
@@ -265,17 +379,113 @@ def _search_python_cosine(repository_id: int, query_vec: list[float], top_k: int
             scored.append((sim, chunk))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-    top = scored[:top_k]
 
     return [
         {
+            'id': c['id'],
             'file_path': c['file_path'],
             'symbol_name': c['symbol_name'],
+            'class_name': c['class_name'],
             'symbol_type': c['symbol_type'],
             'start_line': c['start_line'],
             'end_line': c['end_line'],
             'content': c['content'],
             'similarity': float(sim),
         }
-        for sim, c in top
+        for sim, c in scored[:limit]
     ]
+
+
+# ─── Hybrid Retrieval ──────────────────────────────────────────────────────────
+
+def search_code_hybrid(
+    repository_id: int,
+    query_text: str,
+    n_candidates: int = RAG_RETRIEVAL_CANDIDATES,
+    top_k: int = RAG_CONTEXT_TOP_K,
+) -> list[dict]:
+    """
+    Two-stage hybrid retrieval:
+
+    Stage 1A — Semantic vector search: retrieve n_candidates chunks.
+    Stage 1B — Keyword/identifier search: retrieve KEYWORD_CANDIDATES chunks.
+
+    Merge + deduplicate by chunk id.
+
+    Returns the merged candidate pool (before reranking).
+    The reranker (rag/reranker.py) selects the final top_k.
+
+    All queries are strictly scoped to repository_id.
+    """
+    if not query_text.strip():
+        return []
+
+    # Stage 1A: Semantic vector search
+    query_vec = embed_text(query_text)
+
+    if _pgvector_available():
+        semantic_results = _search_pgvector(repository_id, query_vec, n_candidates)
+    else:
+        semantic_results = _search_python_cosine(repository_id, query_vec, n_candidates)
+
+    # Stage 1B: Keyword / identifier search
+    keyword_results = _keyword_search(repository_id, query_text, KEYWORD_CANDIDATES)
+
+    # Merge: semantic results take priority; keyword results fill in missing chunks
+    seen_ids: set = set()
+    merged: list[dict] = []
+
+    for chunk in semantic_results:
+        cid = chunk.get('id')
+        if cid not in seen_ids:
+            seen_ids.add(cid)
+            merged.append(chunk)
+
+    for chunk in keyword_results:
+        cid = chunk.get('id')
+        if cid not in seen_ids:
+            seen_ids.add(cid)
+            merged.append(chunk)
+
+    logger.debug(
+        'Hybrid retrieval: repo=%d  semantic=%d  keyword=%d  total=%d',
+        repository_id, len(semantic_results), len(keyword_results), len(merged),
+    )
+    return merged
+
+
+# ─── Public API (backward-compatible) ─────────────────────────────────────────
+
+def search_code(
+    repository_id: int,
+    query_text: str,
+    top_k: int = DEFAULT_TOP_K,
+) -> list[dict]:
+    """
+    Backward-compatible retrieval function.
+
+    Phase 2.1: now delegates to hybrid retrieval + reranking internally.
+    Returns top_k chunks (or fewer if not enough candidates pass the threshold).
+
+    Args:
+        repository_id: Strictly scoped repository ID.
+        query_text: Natural-language question or search string.
+        top_k: Final number of chunks to return.
+
+    Returns:
+        List of chunk dicts with similarity, semantic_score, keyword_score,
+        identifier_score, path_score, and final_score fields.
+    """
+    from rag.reranker import rerank
+
+    candidates = search_code_hybrid(
+        repository_id=repository_id,
+        query_text=query_text,
+        n_candidates=RAG_RETRIEVAL_CANDIDATES,
+        top_k=top_k,
+    )
+
+    if not candidates:
+        return []
+
+    return rerank(candidates, query=query_text, top_k=top_k)

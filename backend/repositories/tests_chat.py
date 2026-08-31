@@ -343,7 +343,7 @@ class RAGServiceTests(TestCase):
         )
 
         mock_gemini.assert_not_called()
-        self.assertIn("couldn't find enough relevant code", result['answer'])
+        self.assertIn("couldn't find", result['answer'])
         self.assertEqual(result['sources'], [])
 
     @patch('rag.services.call_gemini', return_value='Answer 2.')

@@ -1,23 +1,31 @@
 """
-AST-Aware Code Chunker (Phase 2).
+AST-Aware Code Chunker (Phase 2.1 — RAG Accuracy Upgrade).
 
-Extracts meaningful code chunks from a repository directory:
-- For Python, JS, TS/TSX: uses Tree-sitter AST to extract functions, classes, and methods
-  with exact symbol names and line boundaries.
-- For all other text files: falls back to sliding-window block chunking.
+Improvements over Phase 2:
+- Qualified symbol names (e.g. "JWTService.generate_token" for methods).
+- Sub-chunking for large symbols (> MAX_AST_CHUNK_LINES lines) with 10-line overlap
+  while preserving parent symbol metadata.
+- Enriched chunk metadata dict includes 'class_name' for methods inside classes.
+- format_chunk_for_embedding() builds the structured text fed into SentenceTransformers,
+  giving the embedder rich context: repo name, file path, class, function, type, code.
+- Broader language support: also handles .java via block chunking (Tree-sitter Java omitted
+  for simplicity; Java support can be added later by importing tree-sitter-java).
+- All Phase 2 file-filtering rules preserved.
 
 Each chunk is a dict:
     {
         'file_path': str,          # relative to repo root
-        'symbol_name': str,        # function/class/method name or ''
+        'symbol_name': str,        # possibly qualified: "ClassName.method_name"
+        'class_name': str,         # enclosing class name (if method), else ''
         'symbol_type': str,        # 'function' | 'class' | 'method' | 'module' | 'block'
         'start_line': int,         # 1-indexed
         'end_line': int,           # 1-indexed inclusive
-        'content': str,            # actual source code
+        'content': str,            # actual source code (possibly truncated for large symbols)
     }
 """
 
 import os
+import re
 import logging
 from pathlib import Path
 
@@ -28,7 +36,9 @@ logger = logging.getLogger(__name__)
 SKIP_DIRS = {
     '.git', 'node_modules', '__pycache__', '.venv', 'venv', 'env',
     'dist', 'build', '.next', '.cache', 'vendor', '.mypy_cache',
-    '.pytest_cache', 'coverage', '.tox', 'target',
+    '.pytest_cache', 'coverage', '.tox', 'target', 'htmlcov',
+    'site-packages', 'eggs', '.eggs', 'migrations',
+    'artifacts', 'backups',
 }
 
 SKIP_EXTENSIONS = {
@@ -36,15 +46,29 @@ SKIP_EXTENSIONS = {
     '.mp4', '.mp3', '.wav', '.ogg',
     '.zip', '.tar', '.gz', '.bz2', '.7z',
     '.woff', '.woff2', '.ttf', '.eot',
-    '.pdf', '.docx', '.xlsx',
-    '.pyc', '.pyo', '.class',
-    '.min.js', '.min.css',  # handled below for compound ext
+    '.pdf', '.docx', '.xlsx', '.xls', '.pptx',
+    '.pyc', '.pyo', '.pyd', '.class', '.so', '.dll', '.dylib',
+    '.db', '.sqlite3',
+    '.lock',        # yarn.lock, Cargo.lock etc. handled below by name too
+    '.csv',         # usually data, not code
+    '.parquet', '.pkl', '.pickle', '.joblib', '.npy', '.npz',
+    '.bin', '.onnx', '.pt', '.pth',
 }
 
-MAX_FILE_SIZE_BYTES = 200_000   # 200 KB — skip likely minified / huge files
-MAX_CHUNK_CONTENT = 4000        # chars cap per chunk to keep context manageable
-BLOCK_CHUNK_LINES = 40          # lines per block chunk for non-AST files
-BLOCK_OVERLAP_LINES = 5         # overlap between blocks
+SKIP_FILENAMES = {
+    'package-lock.json', 'yarn.lock', 'poetry.lock', 'Cargo.lock',
+    'Pipfile.lock', 'composer.lock', 'Gemfile.lock',
+    '.DS_Store', 'Thumbs.db',
+    'license', 'license.txt', 'license.md', 'license-mit', 'license-apache',
+    'copying', 'patents', 'notice',
+}
+
+MAX_FILE_SIZE_BYTES = 150_000     # 150 KB — skip likely minified / huge files
+MAX_AST_CHUNK_LINES = 60          # Split symbols larger than this
+AST_CHUNK_OVERLAP = 10            # Overlap lines when sub-chunking large symbols
+MAX_CHUNK_CONTENT = 3_000         # Char cap per sub-chunk
+BLOCK_CHUNK_LINES = 40            # Lines per block chunk for non-AST files
+BLOCK_OVERLAP_LINES = 8           # Overlap between blocks
 
 
 # ─── Tree-sitter setup ─────────────────────────────────────────────────────────
@@ -58,10 +82,10 @@ def _load_ts_parsers():
         from tree_sitter import Language, Parser
 
         parsers = {
-            '.py': Parser(Language(tspython.language())),
-            '.js': Parser(Language(tsjavascript.language())),
+            '.py':  Parser(Language(tspython.language())),
+            '.js':  Parser(Language(tsjavascript.language())),
             '.jsx': Parser(Language(tsjavascript.language())),
-            '.ts': Parser(Language(tstypescript.language_typescript())),
+            '.ts':  Parser(Language(tstypescript.language_typescript())),
             '.tsx': Parser(Language(tstypescript.language_tsx())),
         }
         logger.debug('Tree-sitter parsers loaded.')
@@ -81,81 +105,200 @@ def _get_parsers() -> dict:
     return _TS_PARSERS
 
 
-# ─── AST-based chunking ────────────────────────────────────────────────────────
+# ─── Symbol node types ─────────────────────────────────────────────────────────
 
-# Node types that represent top-level symbols to extract
-_SYMBOL_NODE_TYPES = {
-    # Python
-    'function_definition': ('function', 'name'),
-    'class_definition': ('class', 'name'),
-    'decorated_definition': ('function', None),   # outer decorator wrapper
-    # JS / TS
-    'function_declaration': ('function', 'name'),
-    'class_declaration': ('class', 'name'),
-    'method_definition': ('method', 'name'),
-    'arrow_function': ('function', None),
-    'export_statement': ('module', None),
-    'lexical_declaration': ('function', None),    # const fn = () => ...
+# Maps Tree-sitter node type → (symbol_type, has_name)
+_TOP_LEVEL_NODES = {
+    'function_definition':   'function',    # Python
+    'class_definition':      'class',       # Python
+    'function_declaration':  'function',    # JS/TS
+    'class_declaration':     'class',       # JS/TS
+    'method_definition':     'method',      # JS/TS
+    'lexical_declaration':   'function',    # JS/TS: const fn = () => ...
+    'export_statement':      'module',      # JS/TS: export default ...
 }
 
+# For Python: method inside class uses function_definition node too
+_PYTHON_METHOD_PARENT = 'class_definition'
 
-def _extract_name_from_node(node, source_bytes: bytes) -> str:
-    """Try to pull the identifier name from a Tree-sitter node."""
+
+def _node_text(node, source_bytes: bytes) -> str:
+    """Extract raw text for a node."""
+    return source_bytes[node.start_byte:node.end_byte].decode('utf-8', errors='replace')
+
+
+def _extract_identifier(node, source_bytes: bytes) -> str:
+    """Pull the first identifier-like child from a node."""
     for child in node.children:
         if child.type in ('identifier', 'property_identifier', 'type_identifier'):
             return source_bytes[child.start_byte:child.end_byte].decode('utf-8', errors='replace')
     return ''
 
 
-def _ast_chunks(file_path_rel: str, source: str, parser) -> list[dict]:
-    """Extract symbol-level chunks using Tree-sitter AST."""
+def _extract_lexical_name(node, source_bytes: bytes) -> str:
+    """For JS 'const fn = ...' — grab the variable declarator's name."""
+    for child in node.children:
+        if child.type == 'variable_declarator':
+            return _extract_identifier(child, source_bytes)
+    return _extract_identifier(node, source_bytes)
+
+
+# ─── Sub-chunking large symbols ────────────────────────────────────────────────
+
+def _sub_chunk(
+    file_path: str,
+    symbol_name: str,
+    class_name: str,
+    symbol_type: str,
+    lines: list[str],
+    start_line_1: int,
+) -> list[dict]:
+    """
+    Split a large symbol into overlapping sub-chunks.
+    Each sub-chunk carries the parent symbol metadata for retrieval context.
+    start_line_1 is 1-indexed.
+    """
+    chunks = []
+    n = len(lines)
+    i = 0
+    while i < n:
+        end_i = min(i + MAX_AST_CHUNK_LINES, n)
+        block_lines = lines[i:end_i]
+        content = '\n'.join(block_lines)[:MAX_CHUNK_CONTENT]
+        if content.strip():
+            chunks.append({
+                'file_path': file_path,
+                'symbol_name': symbol_name,
+                'class_name': class_name,
+                'symbol_type': symbol_type,
+                'start_line': start_line_1 + i,
+                'end_line': start_line_1 + end_i - 1,
+                'content': content,
+            })
+        i += MAX_AST_CHUNK_LINES - AST_CHUNK_OVERLAP
+        if i >= n:
+            break
+    return chunks
+
+
+# ─── AST-based chunking ────────────────────────────────────────────────────────
+
+def _ast_chunks(file_path_rel: str, source: str, parser, lang: str = '') -> list[dict]:
+    """
+    Extract symbol-level chunks using Tree-sitter AST.
+
+    Qualifies method names with their enclosing class name.
+    Sub-chunks large symbols. Deduplicates overlapping line ranges.
+    """
+    if not lang:
+        lang = Path(file_path_rel).suffix.lower()
     source_bytes = source.encode('utf-8')
     try:
         tree = parser.parse(source_bytes)
     except Exception:
         return []
 
-    chunks: list[dict] = []
     lines = source.splitlines()
+    chunks: list[dict] = []
+    is_python = (lang == '.py')
 
-    def walk(node):
-        sym_type, name_field = _SYMBOL_NODE_TYPES.get(node.type, (None, None))
+    def walk(node, enclosing_class: str = ''):
+        ntype = node.type
+        sym_type = _TOP_LEVEL_NODES.get(ntype)
+
         if sym_type:
-            start_line = node.start_point[0]  # 0-indexed
-            end_line = node.end_point[0]      # 0-indexed
-            symbol_name = _extract_name_from_node(node, source_bytes) if name_field is not None else ''
+            # Extract symbol name
+            if ntype == 'lexical_declaration':
+                sym_name = _extract_lexical_name(node, source_bytes)
+            elif ntype == 'export_statement':
+                # Recurse into export to find the actual declaration
+                for child in node.children:
+                    walk(child, enclosing_class)
+                return
+            else:
+                sym_name = _extract_identifier(node, source_bytes)
 
-            # Grab content, capped
-            chunk_lines = lines[start_line:end_line + 1]
-            content = '\n'.join(chunk_lines)[:MAX_CHUNK_CONTENT]
+            # Qualify method names with class name
+            class_name = enclosing_class
+            if sym_type == 'method' and enclosing_class:
+                qualified = f'{enclosing_class}.{sym_name}' if sym_name else enclosing_class
+            elif sym_type == 'function' and is_python and enclosing_class:
+                # Python method inside class
+                sym_type = 'method'
+                qualified = f'{enclosing_class}.{sym_name}' if sym_name else enclosing_class
+            else:
+                qualified = sym_name
 
-            if content.strip():
-                chunks.append({
-                    'file_path': file_path_rel,
-                    'symbol_name': symbol_name,
-                    'symbol_type': sym_type,
-                    'start_line': start_line + 1,   # convert to 1-indexed
-                    'end_line': end_line + 1,
-                    'content': content,
-                })
-            return  # Don't recurse inside extracted symbol blocks
+            start_0 = node.start_point[0]  # 0-indexed
+            end_0 = node.end_point[0]
+            node_lines = lines[start_0:end_0 + 1]
+            line_count = len(node_lines)
 
+            # For class nodes: emit a class-level header chunk + recurse into children
+            if sym_type == 'class':
+                # Emit small header (first 15 lines) as class chunk
+                header_lines = node_lines[:15]
+                header_content = '\n'.join(header_lines)[:MAX_CHUNK_CONTENT]
+                if header_content.strip():
+                    chunks.append({
+                        'file_path': file_path_rel,
+                        'symbol_name': sym_name,
+                        'class_name': '',
+                        'symbol_type': 'class',
+                        'start_line': start_0 + 1,
+                        'end_line': start_0 + min(15, line_count),
+                        'content': header_content,
+                    })
+                # Recurse into class body so methods are extracted individually
+                for child in node.children:
+                    walk(child, enclosing_class=sym_name)
+                return
+
+            # Large symbol: sub-chunk it
+            if line_count > MAX_AST_CHUNK_LINES:
+                sub = _sub_chunk(
+                    file_path=file_path_rel,
+                    symbol_name=qualified,
+                    class_name=class_name,
+                    symbol_type=sym_type,
+                    lines=node_lines,
+                    start_line_1=start_0 + 1,
+                )
+                chunks.extend(sub)
+            else:
+                content = '\n'.join(node_lines)[:MAX_CHUNK_CONTENT]
+                if content.strip():
+                    chunks.append({
+                        'file_path': file_path_rel,
+                        'symbol_name': qualified,
+                        'class_name': class_name,
+                        'symbol_type': sym_type,
+                        'start_line': start_0 + 1,
+                        'end_line': end_0 + 1,
+                        'content': content,
+                    })
+            # Don't recurse further inside non-class symbols
+            return
+
+        # Recurse into nodes we haven't handled yet
         for child in node.children:
-            walk(child)
+            walk(child, enclosing_class)
 
     walk(tree.root_node)
 
-    # Deduplicate by exact (start_line, end_line) to remove nested duplicates
-    seen = set()
+    # Deduplicate by exact (start_line, end_line) pair
+    seen: set = set()
     unique: list[dict] = []
     for c in chunks:
-        key = (c['start_line'], c['end_line'])
+        key = (c['start_line'], c['end_line'], c['symbol_name'])
         if key not in seen:
             seen.add(key)
             unique.append(c)
 
     return unique
 
+
+# ─── Block chunker ─────────────────────────────────────────────────────────────
 
 def _block_chunks(file_path_rel: str, source: str) -> list[dict]:
     """Sliding-window block chunker for files without AST support."""
@@ -169,6 +312,7 @@ def _block_chunks(file_path_rel: str, source: str) -> list[dict]:
             chunks.append({
                 'file_path': file_path_rel,
                 'symbol_name': '',
+                'class_name': '',
                 'symbol_type': 'block',
                 'start_line': i + 1,
                 'end_line': min(i + BLOCK_CHUNK_LINES, len(lines)),
@@ -178,32 +322,27 @@ def _block_chunks(file_path_rel: str, source: str) -> list[dict]:
     return chunks
 
 
-# ─── Public API ────────────────────────────────────────────────────────────────
+# ─── File filter ───────────────────────────────────────────────────────────────
 
 def _should_skip(path: Path) -> bool:
-    """Return True if this path should be ignored."""
-    # Skip hidden or blacklisted directories anywhere in the path
+    """Return True if this path should be ignored during indexing."""
     for part in path.parts:
         if part.startswith('.') and part not in ('.env.example',):
             return True
         if part in SKIP_DIRS:
             return True
 
-    # Skip by extension
     suffix = path.suffix.lower()
     if suffix in SKIP_EXTENSIONS:
         return True
 
-    # Detect minified compound extensions like .min.js
     name_lower = path.name.lower()
     if '.min.' in name_lower:
         return True
 
-    # Skip lockfiles
-    if path.name in ('package-lock.json', 'yarn.lock', 'poetry.lock', 'Cargo.lock', 'Pipfile.lock'):
+    if name_lower in SKIP_FILENAMES or name_lower.startswith('license') or name_lower.startswith('copying'):
         return True
 
-    # Skip very large files (likely generated / minified)
     try:
         if path.stat().st_size > MAX_FILE_SIZE_BYTES:
             return True
@@ -213,11 +352,61 @@ def _should_skip(path: Path) -> bool:
     return False
 
 
-def chunk_repository(repo_path: str) -> list[dict]:
+# ─── Embedding text formatter ──────────────────────────────────────────────────
+
+def format_chunk_for_embedding(chunk: dict, repo_name: str = '') -> str:
+    """
+    Build the structured text string that gets fed into SentenceTransformers.
+
+    Richer context → better embeddings → more accurate retrieval.
+
+    Example output:
+        Repository: RepoMind
+        File: backend/authentication/services.py
+        Class: JWTService
+        Function: generate_token
+        Type: method
+
+        Code:
+        def generate_token(user_id: int, ...):
+            ...
+    """
+    parts = []
+    if repo_name:
+        parts.append(f'Repository: {repo_name}')
+
+    parts.append(f"File: {chunk['file_path']}")
+
+    class_name = chunk.get('class_name', '')
+    sym_name = chunk.get('symbol_name', '')
+    sym_type = chunk.get('symbol_type', 'block')
+
+    # If qualified name already contains ClassName.method, don't double-add class
+    if class_name and '.' not in sym_name:
+        parts.append(f'Class: {class_name}')
+
+    if sym_name:
+        # Strip class prefix if already qualified (ClassName.method → method for label)
+        label_name = sym_name.split('.')[-1] if '.' in sym_name else sym_name
+        type_label = sym_type.capitalize()
+        parts.append(f'{type_label}: {label_name}')
+
+    parts.append(f'Type: {sym_type}')
+    parts.append('')
+    parts.append('Code:')
+    parts.append(chunk.get('content', ''))
+
+    return '\n'.join(parts)
+
+
+# ─── Public API ────────────────────────────────────────────────────────────────
+
+def chunk_repository(repo_path: str, repo_name: str = '') -> list[dict]:
     """
     Walk the repository directory and extract all code chunks.
 
     Returns a list of chunk dicts ready to be embedded and stored as CodeChunk records.
+    Each dict also includes 'embedding_text' — the enriched string for embedding.
     """
     root = Path(repo_path)
     parsers = _get_parsers()
@@ -243,12 +432,17 @@ def chunk_repository(repo_path: str) -> list[dict]:
         parser = parsers.get(suffix)
 
         if parser:
-            chunks = _ast_chunks(relative, source, parser)
-            # If AST produced nothing meaningful, fall back to block
+            chunks = _ast_chunks(relative, source, parser, lang=suffix)
             if not chunks:
                 chunks = _block_chunks(relative, source)
         else:
             chunks = _block_chunks(relative, source)
+
+        # Attach embedding text to each chunk
+        for c in chunks:
+            if 'class_name' not in c:
+                c['class_name'] = ''
+            c['embedding_text'] = format_chunk_for_embedding(c, repo_name=repo_name)
 
         all_chunks.extend(chunks)
 

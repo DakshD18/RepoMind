@@ -1,13 +1,17 @@
 """
-Gemini LLM Service (Phase 2).
+Gemini LLM Service (Phase 2.1 — RAG Accuracy Upgrade).
 
-Wraps the google-genai SDK (the new, non-deprecated package).
-Credentials stay on the backend — never exposed to the frontend.
-
-System prompt enforces strict grounding:
-- Gemini MUST answer using the provided repository context.
-- Gemini MUST NOT invent files, functions, APIs, or implementation details.
-- Gemini MUST clearly state when the retrieved context is insufficient.
+Phase 2.1 changes:
+- Strictly upgraded system prompt with explicit anti-hallucination constraints.
+- Gemini is instructed to:
+    • Treat retrieved context as the ONLY source of truth.
+    • Never invent files, functions, APIs, classes, or dependencies.
+    • Distinguish clearly between facts shown in the code and reasonable inferences.
+    • State explicitly when context is insufficient.
+    • Never use generic framework knowledge to fill gaps not shown in the retrieved code.
+- Repository name and the source file list are included in the system context to
+  ensure every answer reference maps to a real retrieved chunk.
+- temperature stays at 0.15 for deterministic, grounded answers.
 """
 
 import logging
@@ -15,18 +19,59 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# System prompt — defines Gemini's role and grounding rules
-SYSTEM_PROMPT = """You are a repository intelligence assistant for the RepoMind platform.
+# ─── System Prompt ─────────────────────────────────────────────────────────────
 
-Your job is to answer developer questions about a specific GitHub repository based ONLY on the source code context provided to you.
+SYSTEM_PROMPT = """\
+You are a Repository Intelligence assistant built into RepoMind.
 
-STRICT RULES:
-1. Use ONLY the repository code context provided. Do not invent or assume any code, files, APIs, or implementations that are not shown in the context.
-2. If the retrieved context is insufficient or does not contain enough information to answer confidently, say exactly that. For example: "The current context does not contain enough information to answer this question. You may want to ask a more specific question or index a different part of the repository."
-3. Do not use general knowledge about frameworks or libraries to fill gaps in the repository context. Describe what you actually see in the provided code.
-4. When citing code, reference the actual file paths and symbol names visible in the context.
-5. Format your answers clearly using Markdown. Use code blocks for any code you reference.
-6. Be concise but complete. Developers need accurate, source-grounded answers.
+Your ONLY job is to answer developer questions about a specific GitHub repository
+using the SOURCE CODE CONTEXT provided to you below. The context contains actual
+code retrieved from the repository — treat it as ground truth.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STRICT RULES — YOU MUST FOLLOW ALL OF THESE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. USE ONLY THE RETRIEVED CONTEXT.
+   Answer using ONLY the source code shown in the context block.
+   Do NOT use your general knowledge of frameworks, libraries, or common patterns
+   to fill in gaps that are not visible in the provided code.
+
+2. DO NOT INVENT CODE.
+   - Do NOT invent file names.
+   - Do NOT invent function names, class names, or method names.
+   - Do NOT invent API routes or endpoints.
+   - Do NOT invent package dependencies.
+   - Do NOT invent architecture or design decisions.
+   - Do NOT describe how something "typically works" unless the context shows it.
+
+3. CITE REAL SOURCES.
+   Every code reference in your answer must correspond to a FILE and SYMBOL
+   actually shown in the retrieved context. Use the exact file path and symbol
+   name as shown.
+
+4. DISTINGUISH FACTS FROM INFERENCES.
+   If you make a reasonable inference beyond what the code explicitly shows,
+   mark it clearly: "(inferred)" or "(not explicitly shown in retrieved code)".
+
+5. STATE WHEN CONTEXT IS INSUFFICIENT.
+   If the retrieved context does not contain enough information to answer the
+   question confidently, say:
+   "I couldn't find enough relevant information in the retrieved context to
+    answer this question confidently. The indexed code may not include the
+    relevant files, or the repository may need to be re-indexed."
+
+6. DO NOT ASSUME HISTORICAL REASONS.
+   Do not speculate about WHY an architectural decision was made unless the
+   code (e.g. comments, README) explicitly explains it.
+
+7. FORMAT CLEARLY.
+   - Use Markdown formatting.
+   - Use fenced code blocks (``` language) for any code you quote.
+   - Reference file paths in backticks: `backend/auth/views.py`.
+   - Be concise. Developers need accurate answers, not long disclaimers.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 
@@ -39,23 +84,24 @@ def call_gemini(
     Call Gemini with the repository context and conversation history.
 
     Args:
-        system_context: The formatted repository context from the context builder.
-        conversation_history: List of {'role': 'user'|'model', 'parts': [str]} dicts
-                              representing the conversation so far.
-        user_question: The user's current question.
+        system_context: Structured repository context from the context builder.
+                        Includes REPOSITORY header + SOURCE N blocks.
+        conversation_history: List of {'role': 'user'|'model', 'parts': [str]}
+                              representing prior conversation turns.
+        user_question: The user's current question (verbatim).
 
     Returns:
         The generated text response from Gemini.
 
     Raises:
-        RuntimeError: if Gemini API key is missing or the call fails.
+        RuntimeError: if API key is missing or the Gemini call fails.
     """
-    api_key = os.getenv('GEMINI_API_KEY', '').strip()
+    api_key    = os.getenv('GEMINI_API_KEY', '').strip()
     model_name = os.getenv('GEMINI_MODEL', 'gemini-3.6-flash')
 
     if not api_key:
         raise RuntimeError(
-            'GEMINI_API_KEY is not configured. Please add it to backend/.env to enable AI chat.'
+            'GEMINI_API_KEY is not configured. Please add it to backend/.env.'
         )
 
     try:
@@ -64,14 +110,17 @@ def call_gemini(
 
         client = genai.Client(api_key=api_key)
 
-        # Build the full prompt for the current turn:
-        # [System grounding prompt] + [Repository context] + [User question]
+        # Full prompt for the current turn:
+        # [Retrieved Repository Context]
+        # ---
+        # User Question: <question>
         current_user_turn = (
             f'{system_context}\n\n'
-            f'---\n\nUser Question:\n{user_question}'
+            f'---\n\n'
+            f'User Question: {user_question}'
         )
 
-        # Assemble conversation contents
+        # Assemble conversation contents (history + current turn)
         contents = []
         for msg in conversation_history:
             contents.append(
@@ -80,8 +129,6 @@ def call_gemini(
                     parts=[types.Part(text=msg['parts'][0])],
                 )
             )
-
-        # Add current turn
         contents.append(
             types.Content(
                 role='user',
@@ -91,7 +138,7 @@ def call_gemini(
 
         config = types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
-            temperature=0.2,    # Low temperature for deterministic, grounded answers
+            temperature=0.15,       # Low for deterministic, grounded answers
             max_output_tokens=2048,
         )
 
