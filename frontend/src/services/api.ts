@@ -1,5 +1,5 @@
 import axios from 'axios'; //library for http requests(JS)
-import type { AuthResponse, Repository } from '../types';
+import type { AuthResponse, Repository, ChatSession, ChatResponse, IndexResponse } from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
@@ -70,4 +70,30 @@ export const getDashboardRepository = (id: number): Promise<Repository> =>
 export const deleteRepository = (id: number): Promise<void> =>
   api.delete(`/repositories/${id}/`).then(() => undefined);
 
+// ─── Phase 2: AI Indexing & Repository Intelligence ──────────────────────────
+
+export const indexRepository = (repoId: number): Promise<IndexResponse> =>
+  api.post(`/repositories/${repoId}/index/`).then((res) => res.data);
+
+export const sendChatMessage = (
+  repoId: number,
+  message: string,
+  sessionId?: number | null,
+  debug = false,
+): Promise<ChatResponse> =>
+  api.post(`/repositories/${repoId}/chat/`, { message, session_id: sessionId ?? null, debug }).then((res) => res.data);
+
+export const getChatSessions = (repoId: number): Promise<ChatSession[]> =>
+  api.get(`/repositories/${repoId}/sessions/`).then((res) => res.data);
+
+export const createChatSession = (repoId: number, title?: string): Promise<ChatSession> =>
+  api.post(`/repositories/${repoId}/sessions/`, { title: title ?? 'New Chat' }).then((res) => res.data);
+
+export const getChatSession = (repoId: number, sessionId: number): Promise<ChatSession> =>
+  api.get(`/repositories/${repoId}/sessions/${sessionId}/`).then((res) => res.data);
+
+export const deleteChatSession = (repoId: number, sessionId: number): Promise<void> =>
+  api.delete(`/repositories/${repoId}/sessions/${sessionId}/`).then(() => undefined);
+
 export default api;
+

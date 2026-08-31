@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'repositories',
     'parser',
     'dashboard',
+    'embeddings',
+    'rag',
 ]
 
 MIDDLEWARE = [
@@ -72,13 +74,28 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# Database — SQLite for local development
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database
+# Uses PostgreSQL (with pgvector) when DB_NAME is set, otherwise falls back to SQLite.
+_DB_NAME = os.getenv('DB_NAME', '')
+if _DB_NAME:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': _DB_NAME,
+            'USER': os.getenv('DB_USER', 'repomind'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'repomind_secret'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    # Local SQLite fallback (no pgvector; Python-side cosine search used instead)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Django REST Framework

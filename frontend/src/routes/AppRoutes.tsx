@@ -4,6 +4,7 @@ import LandingPage from '../pages/LandingPage';
 import LoginPage from '../pages/LoginPage';
 import Dashboard from '../pages/Dashboard';
 import RepositoryOverview from '../pages/RepositoryOverview';
+import RepositoryChat from '../pages/RepositoryChat';
 import { useAuth } from '../context/AuthContext';
 
 const AppRoutes = () => {
@@ -38,6 +39,23 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      {/* Phase 2 — Repository Intelligence (AI Chat) */}
+      <Route
+        path="/repository/:id/chat"
+        element={
+          <ProtectedRoute>
+            <RepositoryChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/repository/:id/chat/:sessionId"
+        element={
+          <ProtectedRoute>
+            <RepositoryChat />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -46,3 +64,4 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
+

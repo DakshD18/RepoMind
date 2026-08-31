@@ -7,7 +7,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import CodeIcon from '@mui/icons-material/Code';
 import InsightsIcon from '@mui/icons-material/Insights';
-import SecurityIcon from '@mui/icons-material/Security';
+
 import GitHubIcon from '@mui/icons-material/GitHub';
 import ChatIcon from '@mui/icons-material/Chat';
 import HistoryIcon from '@mui/icons-material/History';
@@ -303,17 +303,42 @@ export const LandingPage: React.FC = () => {
           {/* Right Side Image */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Box
-              component="img"
-              src="/hero-graph.png"
-              alt="Network Graph Visualization"
               sx={{
-                width: '100%',
-                height: 'auto',
-                borderRadius: '16px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(108, 99, 255, 0.15)',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: '-10px',
+                  background: 'radial-gradient(ellipse at center, rgba(108, 99, 255, 0.25) 0%, rgba(0, 200, 150, 0.15) 50%, transparent 80%)',
+                  filter: 'blur(30px)',
+                  zIndex: 0,
+                  pointerEvents: 'none',
+                },
               }}
-            />
+            >
+              <Box
+                component="img"
+                src="/hero-modern.png"
+                alt="RepoMind AI Intelligence Platform"
+                sx={{
+                  position: 'relative',
+                  zIndex: 1,
+                  width: '100%',
+                  height: 'auto',
+                  borderRadius: '18px',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  boxShadow: '0 25px 65px rgba(0, 0, 0, 0.7), 0 0 50px rgba(108, 99, 255, 0.2)',
+                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 30px 80px rgba(0, 0, 0, 0.8), 0 0 60px rgba(108, 99, 255, 0.3)',
+                  },
+                }}
+              />
+            </Box>
           </Grid>
         </Grid>
 

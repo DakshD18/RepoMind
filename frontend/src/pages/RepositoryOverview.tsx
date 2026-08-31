@@ -27,7 +27,7 @@ import HealthAndSafetyOutlinedIcon from '@mui/icons-material/HealthAndSafetyOutl
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import CallSplitIcon from '@mui/icons-material/CallSplit';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { getDashboardRepository, analyseRepository } from '../services/api';
+import { getDashboardRepository, analyseRepository, indexRepository } from '../services/api';
 import type { Repository } from '../types';
 import toast from 'react-hot-toast';
 
@@ -125,6 +125,8 @@ export const RepositoryOverview: React.FC = () => {
   const [isReanalysing, setIsReanalysing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [isIndexing, setIsIndexing] = useState(false);
+
   useEffect(() => {
     fetchRepoData();
   }, [id]);
@@ -138,6 +140,32 @@ export const RepositoryOverview: React.FC = () => {
       setError(err?.response?.data?.error || 'Failed to load repository data.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleIndex = async () => {
+    if (!repo || isIndexing) return;
+    setIsIndexing(true);
+    const toastId = toast.loading('Indexing repository for AI chat...');
+    try {
+      await indexRepository(repo.id);
+      // Poll until indexed
+      const poll = setInterval(async () => {
+        const updated = await getDashboardRepository(repo.id);
+        setRepo(updated);
+        if (updated.is_indexed) {
+          clearInterval(poll);
+          setIsIndexing(false);
+          toast.success('Repository indexed! AI chat is now available.', { id: toastId });
+        } else if (updated.index_status === 'failed') {
+          clearInterval(poll);
+          setIsIndexing(false);
+          toast.error('Indexing failed. Please try again.', { id: toastId });
+        }
+      }, 3000);
+    } catch {
+      setIsIndexing(false);
+      toast.error('Failed to start indexing.', { id: toastId });
     }
   };
 
@@ -297,23 +325,47 @@ export const RepositoryOverview: React.FC = () => {
 
               <Button
                 variant="contained"
-                startIcon={<ChatOutlinedIcon sx={{ fontSize: 18 }} />}
+                startIcon={
+                  isIndexing
+                    ? <CircularProgress size={16} sx={{ color: '#fff' }} />
+                    : <ChatOutlinedIcon sx={{ fontSize: 18 }} />
+                }
+                onClick={() => {
+                  if (repo.is_indexed) {
+                    navigate(`/repository/${id}/chat`);
+                  } else if (!isIndexing) {
+                    handleIndex();
+                  }
+                }}
+                disabled={isIndexing}
                 sx={{
                   height: 42,
                   borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #0070f3 0%, #0051b3 100%)',
+                  background: repo.is_indexed
+                    ? 'linear-gradient(135deg, #6c63ff 0%, #4c44cc 100%)'
+                    : isIndexing
+                      ? 'rgba(255,196,0,0.2)'
+                      : 'linear-gradient(135deg, #0070f3 0%, #0051b3 100%)',
                   color: '#ffffff',
                   textTransform: 'none',
                   fontWeight: 700,
                   fontSize: '0.85rem',
                   px: 2.5,
-                  boxShadow: '0 4px 15px rgba(0, 112, 243, 0.3)',
+                  boxShadow: repo.is_indexed
+                    ? '0 4px 15px rgba(108, 99, 255, 0.3)'
+                    : '0 4px 15px rgba(0, 112, 243, 0.3)',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #1a82ff 0%, #0060d6 100%)',
+                    background: repo.is_indexed
+                      ? 'linear-gradient(135deg, #7c74ff 0%, #5c54dd 100%)'
+                      : 'linear-gradient(135deg, #1a82ff 0%, #0060d6 100%)',
                   },
                 }}
               >
-                Start Chat
+                {repo.is_indexed
+                  ? 'Ask AI'
+                  : isIndexing
+                    ? 'Indexing...'
+                    : 'Index & Chat'}
               </Button>
             </Box>
           </Box>
