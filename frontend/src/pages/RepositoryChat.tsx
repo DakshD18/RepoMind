@@ -46,10 +46,11 @@ const CodeBlock = ({ children, className }: { children?: React.ReactNode; classN
         language={match[1]}
         PreTag="div"
         customStyle={{
-          margin: '8px 0',
+          margin: '10px 0',
           borderRadius: 8,
           fontSize: '0.8rem',
-          border: '1px solid rgba(255,255,255,0.08)',
+          backgroundColor: '#080808',
+          border: '1px solid #262626',
         }}
       >
         {code}
@@ -59,8 +60,9 @@ const CodeBlock = ({ children, className }: { children?: React.ReactNode; classN
   return (
     <code
       style={{
-        background: 'rgba(108, 99, 255, 0.12)',
-        color: '#c8c0ff',
+        background: '#161616',
+        color: '#ffd21f',
+        border: '1px solid #262626',
         padding: '2px 6px',
         borderRadius: 4,
         fontSize: '0.82em',
@@ -88,22 +90,25 @@ const SourceCard = ({ source }: { source: SourceReference }) => {
         gap: 0.75,
         px: 1.25,
         py: 0.5,
-        borderRadius: '8px',
-        background: 'rgba(108, 99, 255, 0.08)',
-        border: '1px solid rgba(108, 99, 255, 0.2)',
+        borderRadius: '6px',
+        background: '#151515',
+        border: '1px solid #262626',
         cursor: 'default',
-        transition: 'border-color 0.15s',
-        '&:hover': { borderColor: 'rgba(108, 99, 255, 0.45)' },
+        transition: 'all 0.15s ease',
+        '&:hover': {
+          borderColor: 'rgba(255, 210, 31, 0.45)',
+          background: '#1a1a1a',
+        },
       }}
     >
-      <CodeIcon sx={{ fontSize: 13, color: '#8b84ff' }} />
-      <Typography sx={{ fontSize: '0.72rem', color: '#c0bfff', fontFamily: 'monospace' }}>
+      <CodeIcon sx={{ fontSize: 13, color: '#ffd21f' }} />
+      <Typography sx={{ fontSize: '0.72rem', color: '#e5e5e5', fontFamily: 'monospace' }}>
         {fileName}
         {source.symbol_name && (
-          <span style={{ color: '#8b84ff', marginLeft: 4 }}>— {source.symbol_name}()</span>
+          <span style={{ color: '#ffd21f', marginLeft: 4 }}>— {source.symbol_name}()</span>
         )}
         {source.start_line > 0 && (
-          <span style={{ color: '#666688', marginLeft: 4 }}>
+          <span style={{ color: '#737373', marginLeft: 4 }}>
             L{source.start_line}–{source.end_line}
           </span>
         )}
@@ -117,45 +122,57 @@ const SourceCard = ({ source }: { source: SourceReference }) => {
 const MessageBubble = ({ message }: { message: ChatMessage }) => {
   const isUser = message.role === 'user';
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', mb: 2.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', mb: 3 }}>
       {/* Role label */}
-      <Typography
-        sx={{ fontSize: '0.7rem', color: '#555577', mb: 0.5, px: 0.5, fontWeight: 600, letterSpacing: '0.05em' }}
-      >
-        {isUser ? 'YOU' : 'REPOMIND AI'}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.5, px: 0.5 }}>
+        {!isUser && <AutoAwesomeIcon sx={{ fontSize: 12, color: '#ffd21f' }} />}
+        <Typography
+          sx={{
+            fontSize: '0.68rem',
+            color: isUser ? '#737373' : '#ffd21f',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+          }}
+        >
+          {isUser ? 'YOU' : 'REPOMIND AI'}
+        </Typography>
+      </Box>
 
       {/* Bubble */}
       <Box
         sx={{
-          maxWidth: '80%',
-          px: 2,
-          py: 1.5,
-          borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-          background: isUser
-            ? 'linear-gradient(135deg, rgba(108, 99, 255, 0.25) 0%, rgba(108, 99, 255, 0.15) 100%)'
-            : 'rgba(255, 255, 255, 0.035)',
+          maxWidth: '82%',
+          px: 2.25,
+          py: 1.75,
+          borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+          background: isUser ? '#161616' : '#111111',
           border: isUser
-            ? '1px solid rgba(108, 99, 255, 0.35)'
-            : '1px solid rgba(255, 255, 255, 0.07)',
-          color: '#e0e0ff',
-          fontSize: '0.9rem',
+            ? '1px solid #333333'
+            : '1px solid rgba(255, 210, 31, 0.2)',
+          color: '#e5e5e5',
+          fontSize: '0.885rem',
           lineHeight: 1.65,
+          boxShadow: isUser
+            ? '0 4px 15px rgba(0, 0, 0, 0.4)'
+            : '0 4px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 210, 31, 0.04)',
           '& p': { margin: '4px 0' },
-          '& h1, & h2, & h3': { color: '#fff', marginTop: '12px', marginBottom: '4px' },
+          '& h1, & h2, & h3': { color: '#ffffff', marginTop: '12px', marginBottom: '4px' },
           '& ul, & ol': { paddingLeft: '20px', margin: '6px 0' },
           '& li': { marginBottom: '2px' },
-          '& a': { color: '#8b84ff' },
+          '& a': { color: '#ffd21f', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } },
           '& blockquote': {
-            borderLeft: '3px solid rgba(108, 99, 255, 0.5)',
+            borderLeft: '3px solid #ffd21f',
             margin: '8px 0',
             paddingLeft: '12px',
-            color: '#9090b0',
+            color: '#a3a3a3',
+            background: '#0a0a0a',
+            py: 0.5,
+            borderRadius: '0 4px 4px 0',
           },
         }}
       >
         {isUser ? (
-          <Typography sx={{ fontSize: '0.9rem', lineHeight: 1.65, color: '#e0e0ff', whiteSpace: 'pre-wrap' }}>
+          <Typography sx={{ fontSize: '0.885rem', lineHeight: 1.65, color: '#ffffff', whiteSpace: 'pre-wrap' }}>
             {message.content}
           </Typography>
         ) : (
@@ -167,9 +184,9 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
 
       {/* Sources — shown below assistant messages only */}
       {!isUser && message.sources && message.sources.length > 0 && (
-        <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.75, maxWidth: '80%' }}>
-          <Typography sx={{ fontSize: '0.68rem', color: '#555577', width: '100%', mb: 0.25, fontWeight: 600 }}>
-            SOURCES
+        <Box sx={{ mt: 1.2, display: 'flex', flexWrap: 'wrap', gap: 0.75, maxWidth: '82%' }}>
+          <Typography sx={{ fontSize: '0.65rem', color: '#737373', width: '100%', mb: 0.25, fontWeight: 700, letterSpacing: '0.05em' }}>
+            VERIFIED SOURCE REFERENCES
           </Typography>
           {message.sources.map((src, idx) => (
             <SourceCard key={idx} source={src} />
@@ -183,24 +200,28 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
 // ─── Loading indicator ─────────────────────────────────────────────────────
 
 const LoadingMessage = ({ stage }: { stage: string }) => (
-  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2.5 }}>
-    <Typography sx={{ fontSize: '0.7rem', color: '#555577', mb: 0.5, px: 0.5, fontWeight: 600 }}>
-      REPOMIND AI
-    </Typography>
+  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 3 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.5, px: 0.5 }}>
+      <AutoAwesomeIcon sx={{ fontSize: 12, color: '#ffd21f' }} />
+      <Typography sx={{ fontSize: '0.68rem', color: '#ffd21f', fontWeight: 700, letterSpacing: '0.08em' }}>
+        REPOMIND AI
+      </Typography>
+    </Box>
     <Box
       sx={{
         display: 'flex',
         alignItems: 'center',
-        gap: 1.25,
-        px: 2,
+        gap: 1.5,
+        px: 2.25,
         py: 1.5,
-        borderRadius: '16px 16px 16px 4px',
-        background: 'rgba(255, 255, 255, 0.035)',
-        border: '1px solid rgba(255, 255, 255, 0.07)',
+        borderRadius: '14px 14px 14px 2px',
+        background: '#111111',
+        border: '1px solid rgba(255, 210, 31, 0.25)',
+        boxShadow: '0 0 15px rgba(255, 210, 31, 0.05)',
       }}
     >
-      <CircularProgress size={14} sx={{ color: '#6c63ff' }} />
-      <Typography sx={{ fontSize: '0.85rem', color: '#8888aa' }}>{stage}</Typography>
+      <CircularProgress size={14} sx={{ color: '#ffd21f' }} />
+      <Typography sx={{ fontSize: '0.825rem', color: '#a3a3a3' }}>{stage}</Typography>
     </Box>
   </Box>
 );
@@ -208,9 +229,9 @@ const LoadingMessage = ({ stage }: { stage: string }) => (
 // ─── Loading stages helper ─────────────────────────────────────────────────
 
 const LOADING_STAGES = [
-  'Searching repository...',
-  'Analyzing relevant code...',
-  'Generating response...',
+  'Searching repository knowledge graph...',
+  'Analyzing relevant AST and symbols...',
+  'Synthesizing contextual developer response...',
 ];
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
@@ -404,8 +425,8 @@ const RepositoryChat: React.FC = () => {
 
   if (loadingRepo) {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#09090d' }}>
-        <CircularProgress sx={{ color: '#6c63ff' }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#050505' }}>
+        <CircularProgress sx={{ color: '#ffd21f' }} />
       </Box>
     );
   }
@@ -414,21 +435,21 @@ const RepositoryChat: React.FC = () => {
   const isIndexing = repository?.index_status === 'indexing' || indexing;
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', background: '#09090d', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', height: '100vh', background: '#050505', overflow: 'hidden' }}>
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
       <Box
         sx={{
           width: 260,
           flexShrink: 0,
-          borderRight: '1px solid rgba(255,255,255,0.06)',
-          background: '#0c0c12',
+          borderRight: '1px solid #262626',
+          background: '#0a0a0a',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
         }}
       >
         {/* Back + Repo name */}
-        <Box sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid #1a1a1a' }}>
           <Box
             onClick={() => navigate(`/repository/${repoId}`)}
             sx={{
@@ -436,18 +457,18 @@ const RepositoryChat: React.FC = () => {
               alignItems: 'center',
               gap: 1,
               cursor: 'pointer',
-              color: '#8888aa',
+              color: '#737373',
               mb: 1.5,
-              '&:hover': { color: '#e0e0ff' },
+              '&:hover': { color: '#ffd21f' },
               transition: 'color 0.15s',
             }}
           >
-            <ArrowBackIcon sx={{ fontSize: 16 }} />
-            <Typography sx={{ fontSize: '0.78rem', fontWeight: 500 }}>Back to Repository</Typography>
+            <ArrowBackIcon sx={{ fontSize: 15 }} />
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 600 }}>Back to Repository</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <FolderOpenIcon sx={{ fontSize: 16, color: '#6c63ff' }} />
-            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#e0e0ff' }} noWrap>
+            <FolderOpenIcon sx={{ fontSize: 16, color: '#ffd21f' }} />
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff' }} noWrap>
               {repository?.name || 'Repository'}
             </Typography>
           </Box>
@@ -460,15 +481,20 @@ const RepositoryChat: React.FC = () => {
             startIcon={<AddIcon />}
             onClick={handleNewChat}
             sx={{
-              background: 'rgba(108, 99, 255, 0.15)',
-              border: '1px solid rgba(108, 99, 255, 0.3)',
-              color: '#c0bfff',
-              borderRadius: '10px',
-              py: 1,
+              background: '#151515',
+              border: '1px solid rgba(255, 210, 31, 0.35)',
+              color: '#ffd21f',
+              borderRadius: '8px',
+              py: 0.9,
               fontSize: '0.82rem',
-              fontWeight: 600,
+              fontWeight: 700,
               textTransform: 'none',
-              '&:hover': { background: 'rgba(108, 99, 255, 0.25)' },
+              transition: 'all 0.15s ease',
+              '&:hover': {
+                background: 'rgba(255, 210, 31, 0.1)',
+                borderColor: '#ffd21f',
+                boxShadow: '0 0 12px rgba(255, 210, 31, 0.15)',
+              },
             }}
           >
             New Chat
@@ -479,7 +505,7 @@ const RepositoryChat: React.FC = () => {
         <Box sx={{ flex: 1, overflowY: 'auto', px: 1 }}>
           {sessions.length === 0 ? (
             <Box sx={{ px: 2, py: 4, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.78rem', color: '#444466', lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '0.78rem', color: '#555555', lineHeight: 1.6 }}>
                 No conversations yet. Start by asking a question about this repository.
               </Typography>
             </Box>
@@ -494,26 +520,28 @@ const RepositoryChat: React.FC = () => {
                   px: 1.5,
                   py: 1,
                   mb: 0.25,
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   cursor: 'pointer',
                   background:
                     activeSessionId === session.id
-                      ? 'rgba(108, 99, 255, 0.12)'
+                      ? 'rgba(255, 210, 31, 0.08)'
                       : 'transparent',
                   border:
                     activeSessionId === session.id
-                      ? '1px solid rgba(108, 99, 255, 0.2)'
+                      ? '1px solid rgba(255, 210, 31, 0.25)'
                       : '1px solid transparent',
-                  '&:hover': { background: 'rgba(255,255,255,0.03)' },
-                  transition: 'all 0.1s',
+                  transition: 'all 0.15s ease',
+                  '&:hover': {
+                    background: activeSessionId === session.id ? 'rgba(255, 210, 31, 0.12)' : '#151515',
+                  },
                 }}
               >
                 <Typography
                   sx={{
                     flex: 1,
                     fontSize: '0.8rem',
-                    color: activeSessionId === session.id ? '#c0bfff' : '#888899',
-                    fontWeight: activeSessionId === session.id ? 500 : 400,
+                    color: activeSessionId === session.id ? '#ffffff' : '#a3a3a3',
+                    fontWeight: activeSessionId === session.id ? 600 : 400,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -527,12 +555,13 @@ const RepositoryChat: React.FC = () => {
                     onClick={(e) => handleDeleteSession(e, session.id)}
                     sx={{
                       opacity: 0,
-                      color: '#ef5350',
+                      color: '#737373',
                       p: 0.25,
                       '.MuiBox-root:hover &': { opacity: 1 },
+                      '&:hover': { color: '#ef5350' },
                     }}
                   >
-                    <DeleteIcon sx={{ fontSize: 14 }} />
+                    <DeleteIcon sx={{ fontSize: 13 }} />
                   </IconButton>
                 </Tooltip>
               </Box>
@@ -541,7 +570,7 @@ const RepositoryChat: React.FC = () => {
         </Box>
 
         {/* Indexed status badge */}
-        <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <Box sx={{ p: 2, borderTop: '1px solid #1a1a1a' }}>
           <Chip
             size="small"
             label={
@@ -553,30 +582,30 @@ const RepositoryChat: React.FC = () => {
             }
             sx={{
               width: '100%',
-              borderRadius: '8px',
+              borderRadius: '6px',
               fontSize: '0.7rem',
               fontWeight: 600,
               background: isIndexed
-                ? 'rgba(0, 200, 150, 0.1)'
+                ? 'rgba(255, 210, 31, 0.08)'
                 : isIndexing
-                  ? 'rgba(255, 196, 0, 0.1)'
-                  : 'rgba(239, 83, 80, 0.1)',
-              color: isIndexed ? '#00c896' : isIndexing ? '#ffc400' : '#ef5350',
-              border: `1px solid ${isIndexed ? 'rgba(0, 200, 150, 0.2)' : isIndexing ? 'rgba(255, 196, 0, 0.2)' : 'rgba(239, 83, 80, 0.2)'}`,
+                  ? 'rgba(255, 210, 31, 0.15)'
+                  : 'rgba(239, 83, 80, 0.08)',
+              color: isIndexed ? '#ffd21f' : isIndexing ? '#ffe033' : '#ef5350',
+              border: `1px solid ${isIndexed ? 'rgba(255, 210, 31, 0.3)' : isIndexing ? 'rgba(255, 210, 31, 0.4)' : 'rgba(239, 83, 80, 0.25)'}`,
             }}
           />
         </Box>
       </Box>
 
       {/* ── Main Chat Area ────────────────────────────────────────────────── */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#050505' }}>
         {/* Header */}
         <Box
           sx={{
             px: 3,
-            py: 2,
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            background: 'rgba(9, 9, 13, 0.8)',
+            py: 1.75,
+            borderBottom: '1px solid #262626',
+            background: 'rgba(10, 10, 10, 0.85)',
             backdropFilter: 'blur(16px)',
             display: 'flex',
             alignItems: 'center',
@@ -584,12 +613,25 @@ const RepositoryChat: React.FC = () => {
             flexShrink: 0,
           }}
         >
-          <AutoAwesomeIcon sx={{ color: '#6c63ff', fontSize: 20 }} />
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '8px',
+              background: '#151515',
+              border: '1px solid rgba(255, 210, 31, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 16 }} />
+          </Box>
           <Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff', lineHeight: 1.2 }}>
               Repository Intelligence
             </Typography>
-            <Typography sx={{ fontSize: '0.72rem', color: '#555577' }}>
+            <Typography sx={{ fontSize: '0.72rem', color: '#737373' }}>
               {repository ? `${repository.owner}/${repository.name}` : '...'}
             </Typography>
           </Box>
@@ -604,9 +646,6 @@ const RepositoryChat: React.FC = () => {
             py: 3,
             display: 'flex',
             flexDirection: 'column',
-            '&::-webkit-scrollbar': { width: 6 },
-            '&::-webkit-scrollbar-track': { background: 'transparent' },
-            '&::-webkit-scrollbar-thumb': { background: 'rgba(108,99,255,0.2)', borderRadius: 3 },
           }}
         >
           {/* Empty state */}
@@ -614,26 +653,27 @@ const RepositoryChat: React.FC = () => {
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', py: 8 }}>
               <Box
                 sx={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: '20px',
-                  background: 'linear-gradient(135deg, rgba(108,99,255,0.2) 0%, rgba(0,200,150,0.15) 100%)',
-                  border: '1px solid rgba(108,99,255,0.2)',
+                  width: 60,
+                  height: 60,
+                  borderRadius: '16px',
+                  background: '#111111',
+                  border: '1px solid rgba(255, 210, 31, 0.3)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  mb: 2,
+                  mb: 2.5,
+                  boxShadow: '0 0 30px rgba(255, 210, 31, 0.12)',
                 }}
               >
-                <AutoAwesomeIcon sx={{ fontSize: 28, color: '#6c63ff' }} />
+                <AutoAwesomeIcon sx={{ fontSize: 26, color: '#ffd21f' }} />
               </Box>
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: '#e0e0ff', mb: 1 }}>
+              <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', mb: 1 }}>
                 Ask anything about this repository
               </Typography>
-              <Typography sx={{ fontSize: '0.85rem', color: '#555577', maxWidth: 400, mb: 3 }}>
+              <Typography sx={{ fontSize: '0.85rem', color: '#737373', maxWidth: 420, mb: 3 }}>
                 {isIndexed
-                  ? 'Questions are answered using the actual source code. No guessing.'
-                  : 'Index this repository first to enable AI-powered code Q&A.'}
+                  ? 'Questions are answered using the actual source code and knowledge graph. No guessing.'
+                  : 'Index this repository first to enable AI-powered code analysis and Q&A.'}
               </Typography>
               {!isIndexed && !isIndexing && (
                 <Button
@@ -641,11 +681,17 @@ const RepositoryChat: React.FC = () => {
                   onClick={handleIndex}
                   disabled={indexing}
                   sx={{
-                    borderColor: 'rgba(108,99,255,0.4)',
-                    color: '#c0bfff',
-                    '&:hover': { borderColor: '#6c63ff', background: 'rgba(108,99,255,0.1)' },
+                    borderColor: 'rgba(255, 210, 31, 0.4)',
+                    color: '#ffd21f',
+                    background: '#111111',
                     textTransform: 'none',
                     fontWeight: 600,
+                    borderRadius: '8px',
+                    px: 2.5,
+                    '&:hover': {
+                      borderColor: '#ffd21f',
+                      background: 'rgba(255, 210, 31, 0.08)',
+                    },
                   }}
                 >
                   Index Repository
@@ -653,8 +699,8 @@ const RepositoryChat: React.FC = () => {
               )}
               {isIndexing && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={14} sx={{ color: '#ffc400' }} />
-                  <Typography sx={{ fontSize: '0.82rem', color: '#ffc400' }}>Indexing in progress...</Typography>
+                  <CircularProgress size={14} sx={{ color: '#ffd21f' }} />
+                  <Typography sx={{ fontSize: '0.82rem', color: '#ffd21f' }}>Indexing in progress...</Typography>
                 </Box>
               )}
             </Box>
@@ -666,14 +712,14 @@ const RepositoryChat: React.FC = () => {
               severity={error.includes('indexed') ? 'warning' : 'error'}
               sx={{
                 mb: 2,
-                background: 'rgba(239,83,80,0.08)',
-                border: '1px solid rgba(239,83,80,0.2)',
-                color: '#e0e0ff',
-                '& .MuiAlert-icon': { color: '#ef5350' },
+                background: '#161616',
+                border: '1px solid #262626',
+                color: '#e5e5e5',
+                '& .MuiAlert-icon': { color: error.includes('indexed') ? '#ffd21f' : '#ef5350' },
               }}
               action={
                 error.includes('indexed') && !isIndexed && !isIndexing ? (
-                  <Button size="small" onClick={handleIndex} sx={{ color: '#ffc400', textTransform: 'none' }}>
+                  <Button size="small" onClick={handleIndex} sx={{ color: '#ffd21f', textTransform: 'none', fontWeight: 700 }}>
                     Index Now
                   </Button>
                 ) : undefined
@@ -693,25 +739,25 @@ const RepositoryChat: React.FC = () => {
           <div ref={messagesEndRef} />
         </Box>
 
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+        <Divider sx={{ borderColor: '#262626' }} />
 
         {/* Input area */}
-        <Box sx={{ p: 2, flexShrink: 0 }}>
+        <Box sx={{ p: 2, flexShrink: 0, background: '#050505' }}>
           <Box
             sx={{
               display: 'flex',
               alignItems: 'flex-end',
               gap: 1,
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '14px',
+              background: '#0a0a0a',
+              border: '1px solid #262626',
+              borderRadius: '12px',
               px: 1.5,
-              py: 1,
-              '&:focus-within': {
-                border: '1px solid rgba(108,99,255,0.5)',
-                background: 'rgba(108,99,255,0.04)',
-              },
+              py: 0.8,
               transition: 'all 0.2s',
+              '&:focus-within': {
+                border: '1px solid #ffd21f',
+                boxShadow: '0 0 15px rgba(255, 210, 31, 0.15)',
+              },
             }}
           >
             <TextField
@@ -733,15 +779,15 @@ const RepositoryChat: React.FC = () => {
                 input: {
                   disableUnderline: true,
                   style: {
-                    color: '#e0e0ff',
-                    fontSize: '0.9rem',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
                     lineHeight: 1.6,
                   },
                 },
               }}
               sx={{
                 '& .MuiInputBase-input::placeholder': {
-                  color: '#444466',
+                  color: '#737373',
                   opacity: 1,
                 },
               }}
@@ -755,20 +801,27 @@ const RepositoryChat: React.FC = () => {
                 flexShrink: 0,
                 background:
                   loading || !input.trim() || !isIndexed
-                    ? 'rgba(108,99,255,0.1)'
-                    : 'rgba(108,99,255,0.3)',
-                color: loading || !input.trim() || !isIndexed ? '#555577' : '#e0e0ff',
-                borderRadius: '10px',
+                    ? '#151515'
+                    : '#ffd21f',
+                color: loading || !input.trim() || !isIndexed ? '#555555' : '#050505',
+                borderRadius: '8px',
                 transition: 'all 0.15s',
                 '&:hover': {
-                  background: 'rgba(108,99,255,0.45)',
+                  background:
+                    loading || !input.trim() || !isIndexed
+                      ? '#151515'
+                      : '#ffe033',
+                  boxShadow:
+                    loading || !input.trim() || !isIndexed
+                      ? 'none'
+                      : '0 0 12px rgba(255, 210, 31, 0.35)',
                 },
               }}
             >
-              {loading ? <CircularProgress size={16} sx={{ color: '#6c63ff' }} /> : <SendIcon sx={{ fontSize: 18 }} />}
+              {loading ? <CircularProgress size={16} sx={{ color: '#050505' }} /> : <SendIcon sx={{ fontSize: 17 }} />}
             </IconButton>
           </Box>
-          <Typography sx={{ fontSize: '0.68rem', color: '#333355', textAlign: 'center', mt: 0.75 }}>
+          <Typography sx={{ fontSize: '0.68rem', color: '#555555', textAlign: 'center', mt: 0.75 }}>
             Enter to send · Shift+Enter for newline · Answers are grounded in repository source code
           </Typography>
         </Box>

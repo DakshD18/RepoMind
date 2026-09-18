@@ -109,8 +109,8 @@ export const LoginPage: React.FC = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: '#09090d',
-        color: '#e0e0ff',
+        background: '#050505',
+        color: '#e5e5e5',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -129,7 +129,7 @@ export const LoginPage: React.FC = () => {
           width: '650px',
           height: '650px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(108,99,255,0.18) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(255, 210, 31, 0.05) 0%, transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -140,10 +140,10 @@ export const LoginPage: React.FC = () => {
           position: 'absolute',
           inset: 0,
           backgroundImage: `
-            linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px)
+            linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)
           `,
-          backgroundSize: '60px 60px',
+          backgroundSize: '48px 48px',
           pointerEvents: 'none',
         }}
       />
@@ -158,51 +158,51 @@ export const LoginPage: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          color: '#8888aa',
+          color: '#a3a3a3',
           cursor: 'pointer',
-          fontSize: '0.875rem',
+          fontSize: '0.85rem',
           fontWeight: 600,
           transition: 'color 0.2s',
-          '&:hover': { color: '#ffffff' },
+          '&:hover': { color: '#ffd21f' },
         }}
       >
         <ArrowBackIcon fontSize="small" />
         Back to Home
       </Box>
 
-      {/* Login Card matching Image #2 from reference */}
+      {/* Login Card */}
       <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 1 }}>
         <Card
           sx={{
-            background: 'rgba(13, 13, 22, 0.95)',
-            border: '1px solid rgba(108, 99, 255, 0.25)',
-            borderRadius: '24px',
+            background: '#111111',
+            border: '1px solid #262626',
+            borderRadius: '16px',
             p: { xs: 3, sm: 4 },
-            boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(108, 99, 255, 0.15)',
-            backdropFilter: 'blur(20px)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8), 0 0 25px rgba(255, 210, 31, 0.05)',
           }}
         >
           {/* Logo Header */}
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             <Box
               sx={{
-                width: 48,
-                height: 48,
-                borderRadius: '14px',
-                background: 'linear-gradient(135deg, #6c63ff 0%, #00c896 100%)',
+                width: 44,
+                height: 44,
+                borderRadius: '10px',
+                background: '#161616',
+                border: '1px solid rgba(255, 210, 31, 0.4)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 30px rgba(108,99,255,0.5)',
+                boxShadow: '0 0 20px rgba(255, 210, 31, 0.15)',
                 mb: 2,
               }}
             >
-              <AutoAwesomeIcon sx={{ color: '#fff', fontSize: 26 }} />
+              <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 22 }} />
             </Box>
             <Typography variant="h5" sx={{ fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', mb: 0.5 }}>
               {isSignUp ? 'Create your account' : 'Welcome back'}
             </Typography>
-            <Typography sx={{ color: '#8888aa', fontSize: '0.875rem' }}>
+            <Typography sx={{ color: '#a3a3a3', fontSize: '0.85rem' }}>
               {isSignUp ? 'Sign up to start analysing repos with AI' : 'Sign in to continue to RepoMind'}
             </Typography>
           </Box>
@@ -210,7 +210,14 @@ export const LoginPage: React.FC = () => {
           {/* Social Logins Section */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
             {/* Google OAuth Button */}
-            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                width: '100%',
+                '& > div': { width: '100% !important', display: 'flex', justifyContent: 'center' },
+              }}
+            >
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={handleGoogleError}
@@ -218,7 +225,6 @@ export const LoginPage: React.FC = () => {
                 size="large"
                 text="continue_with"
                 shape="rectangular"
-                width="100%"
               />
             </Box>
 
@@ -229,17 +235,20 @@ export const LoginPage: React.FC = () => {
               startIcon={<GitHubIcon sx={{ color: '#ffffff' }} />}
               onClick={handleGitHubRedirect}
               sx={{
-                height: 42,
+                height: 40,
                 borderRadius: '8px',
-                borderColor: 'rgba(255, 255, 255, 0.15)',
+                borderColor: '#262626',
                 color: '#ffffff',
                 textTransform: 'none',
                 fontWeight: 600,
-                fontSize: '0.875rem',
-                background: 'rgba(255, 255, 255, 0.03)',
+                fontSize: '0.85rem',
+                background: '#151515',
+                transition: 'all 0.15s ease',
                 '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  background: '#1a1a1a',
+                  borderColor: '#333333',
+                  color: '#ffd21f',
+                  '& .MuiButton-startIcon': { color: '#ffd21f' },
                 },
               }}
             >
@@ -249,9 +258,9 @@ export const LoginPage: React.FC = () => {
 
           <Divider
             sx={{
-              borderColor: 'rgba(255, 255, 255, 0.08)',
-              color: '#555577',
-              fontSize: '0.75rem',
+              borderColor: '#262626',
+              color: '#737373',
+              fontSize: '0.7rem',
               my: 2.5,
               textTransform: 'uppercase',
               letterSpacing: '1px',
@@ -265,7 +274,7 @@ export const LoginPage: React.FC = () => {
             {isSignUp && (
               <Box sx={{ display: 'flex', gap: 1.5 }}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.8rem', color: '#a0a0cc', mb: 0.8, fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: '0.78rem', color: '#a3a3a3', mb: 0.8, fontWeight: 500 }}>
                     First Name
                   </Typography>
                   <TextField
@@ -278,18 +287,18 @@ export const LoginPage: React.FC = () => {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: '#ffffff',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        borderRadius: '10px',
-                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.12)' },
-                        '&:hover fieldset': { borderColor: 'rgba(108, 99, 255, 0.4)' },
-                        '&.Mui-focused fieldset': { borderColor: '#6c63ff' },
+                        background: '#0a0a0a',
+                        borderRadius: '8px',
+                        '& fieldset': { borderColor: '#262626' },
+                        '&:hover fieldset': { borderColor: '#333333' },
+                        '&.Mui-focused fieldset': { borderColor: '#ffd21f' },
                       },
-                      '& input::placeholder': { color: '#555577', opacity: 1 },
+                      '& input::placeholder': { color: '#737373', opacity: 1 },
                     }}
                   />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.8rem', color: '#a0a0cc', mb: 0.8, fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: '0.78rem', color: '#a3a3a3', mb: 0.8, fontWeight: 500 }}>
                     Last Name
                   </Typography>
                   <TextField
@@ -302,13 +311,13 @@ export const LoginPage: React.FC = () => {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: '#ffffff',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        borderRadius: '10px',
-                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.12)' },
-                        '&:hover fieldset': { borderColor: 'rgba(108, 99, 255, 0.4)' },
-                        '&.Mui-focused fieldset': { borderColor: '#6c63ff' },
+                        background: '#0a0a0a',
+                        borderRadius: '8px',
+                        '& fieldset': { borderColor: '#262626' },
+                        '&:hover fieldset': { borderColor: '#333333' },
+                        '&.Mui-focused fieldset': { borderColor: '#ffd21f' },
                       },
-                      '& input::placeholder': { color: '#555577', opacity: 1 },
+                      '& input::placeholder': { color: '#737373', opacity: 1 },
                     }}
                   />
                 </Box>
@@ -316,7 +325,7 @@ export const LoginPage: React.FC = () => {
             )}
 
             <Box>
-              <Typography sx={{ fontSize: '0.8rem', color: '#a0a0cc', mb: 0.8, fontWeight: 500 }}>
+              <Typography sx={{ fontSize: '0.78rem', color: '#a3a3a3', mb: 0.8, fontWeight: 500 }}>
                 Email address
               </Typography>
               <TextField
@@ -331,19 +340,19 @@ export const LoginPage: React.FC = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     color: '#ffffff',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    borderRadius: '10px',
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.12)' },
-                    '&:hover fieldset': { borderColor: 'rgba(108, 99, 255, 0.4)' },
-                    '&.Mui-focused fieldset': { borderColor: '#6c63ff' },
+                    background: '#0a0a0a',
+                    borderRadius: '8px',
+                    '& fieldset': { borderColor: '#262626' },
+                    '&:hover fieldset': { borderColor: '#333333' },
+                    '&.Mui-focused fieldset': { borderColor: '#ffd21f' },
                   },
-                  '& input::placeholder': { color: '#555577', opacity: 1 },
+                  '& input::placeholder': { color: '#737373', opacity: 1 },
                 }}
               />
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '0.8rem', color: '#a0a0cc', mb: 0.8, fontWeight: 500 }}>
+              <Typography sx={{ fontSize: '0.78rem', color: '#a3a3a3', mb: 0.8, fontWeight: 500 }}>
                 Password
               </Typography>
               <TextField
@@ -358,13 +367,13 @@ export const LoginPage: React.FC = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     color: '#ffffff',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    borderRadius: '10px',
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.12)' },
-                    '&:hover fieldset': { borderColor: 'rgba(108, 99, 255, 0.4)' },
-                    '&.Mui-focused fieldset': { borderColor: '#6c63ff' },
+                    background: '#0a0a0a',
+                    borderRadius: '8px',
+                    '& fieldset': { borderColor: '#262626' },
+                    '&:hover fieldset': { borderColor: '#333333' },
+                    '&.Mui-focused fieldset': { borderColor: '#ffd21f' },
                   },
-                  '& input::placeholder': { color: '#555577', opacity: 1 },
+                  '& input::placeholder': { color: '#737373', opacity: 1 },
                 }}
               />
             </Box>
@@ -377,18 +386,19 @@ export const LoginPage: React.FC = () => {
               endIcon={<ArrowForwardIcon />}
               sx={{
                 mt: 1,
-                height: 44,
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%)',
+                height: 42,
+                borderRadius: '8px',
+                background: '#ffd21f',
+                color: '#050505',
                 fontWeight: 700,
                 textTransform: 'none',
                 fontSize: '0.9rem',
-                boxShadow: '0 4px 20px rgba(108, 99, 255, 0.4)',
+                boxShadow: '0 2px 14px rgba(255, 210, 31, 0.3)',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #7c73ff 0%, #5f56f5 100%)',
-                  boxShadow: '0 6px 25px rgba(108, 99, 255, 0.6)',
+                  background: '#ffe033',
+                  boxShadow: '0 4px 20px rgba(255, 210, 31, 0.45)',
                 },
-                '&:disabled': { opacity: 0.6 },
+                '&:disabled': { opacity: 0.5 },
               }}
             >
               {isSignUp ? 'Sign Up' : 'Sign In'}
@@ -397,13 +407,13 @@ export const LoginPage: React.FC = () => {
 
           {/* Toggle Sign In / Sign Up */}
           <Box sx={{ textAlign: 'center', mt: 3 }}>
-            <Typography sx={{ color: '#8888aa', fontSize: '0.825rem' }}>
+            <Typography sx={{ color: '#737373', fontSize: '0.825rem' }}>
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
               <Typography
                 component="span"
                 onClick={() => setIsSignUp(!isSignUp)}
                 sx={{
-                  color: '#6c63ff',
+                  color: '#ffd21f',
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontSize: '0.825rem',

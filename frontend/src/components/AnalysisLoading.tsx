@@ -38,14 +38,14 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: '#09090d',
+        background: '#050505',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
       }}
     >
-      {/* Background floating translucent code snippets matching screenshot #5 */}
+      {/* Background floating translucent code snippets */}
       <Box
         sx={{
           position: 'absolute',
@@ -53,7 +53,7 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
           left: '10%',
           fontFamily: 'monospace',
           fontSize: '0.75rem',
-          color: 'rgba(108, 99, 255, 0.12)',
+          color: 'rgba(255, 210, 31, 0.08)',
           userSelect: 'none',
           pointerEvents: 'none',
         }}
@@ -68,7 +68,7 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
           right: '12%',
           fontFamily: 'monospace',
           fontSize: '0.75rem',
-          color: 'rgba(255, 255, 255, 0.08)',
+          color: 'rgba(255, 255, 255, 0.05)',
           userSelect: 'none',
           pointerEvents: 'none',
         }}
@@ -83,12 +83,12 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
           left: '15%',
           fontFamily: 'monospace',
           fontSize: '0.75rem',
-          color: 'rgba(0, 200, 150, 0.12)',
+          color: 'rgba(255, 210, 31, 0.06)',
           userSelect: 'none',
           pointerEvents: 'none',
         }}
       >
-        // Calculating cyclomatic complexity
+        // Calculating cyclomatic complexity & knowledge vectors
       </Box>
 
       <Box
@@ -98,12 +98,12 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
           right: '10%',
           fontFamily: 'monospace',
           fontSize: '0.75rem',
-          color: 'rgba(108, 99, 255, 0.1)',
+          color: 'rgba(255, 210, 31, 0.08)',
           userSelect: 'none',
           pointerEvents: 'none',
         }}
       >
-        useMemo(() =&gt; generateAST(), [src]);
+        useMemo(() =&gt; generateKnowledgeGraph(), [src]);
       </Box>
 
       <Box
@@ -113,12 +113,12 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
           right: '25%',
           fontFamily: 'monospace',
           fontSize: '0.75rem',
-          color: 'rgba(255, 255, 255, 0.06)',
+          color: 'rgba(255, 255, 255, 0.04)',
           userSelect: 'none',
           pointerEvents: 'none',
         }}
       >
-        function buildGraph(nodes: ASTNode[])
+        function buildDependencyTree(nodes: ASTNode[])
       </Box>
 
       {/* Central glowing radial aura */}
@@ -128,12 +128,12 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
           width: 450,
           height: 450,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(108,99,255,0.18) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(255, 210, 31, 0.08) 0%, transparent 70%)',
           pointerEvents: 'none',
           animation: 'pulseAura 3s infinite ease-in-out',
           '@keyframes pulseAura': {
-            '0%, 100%': { transform: 'scale(1)', opacity: 0.8 },
-            '50%': { transform: 'scale(1.1)', opacity: 1 },
+            '0%, 100%': { transform: 'scale(1)', opacity: 0.7 },
+            '50%': { transform: 'scale(1.15)', opacity: 1 },
           },
         }}
       />
@@ -153,15 +153,16 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
             sx={{
               width: 44,
               height: 44,
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6c63ff 0%, #00c896 100%)',
+              borderRadius: '10px',
+              background: '#111111',
+              border: '1px solid rgba(255, 210, 31, 0.4)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 30px rgba(108,99,255,0.5)',
+              boxShadow: '0 0 25px rgba(255, 210, 31, 0.2)',
             }}
           >
-            <AutoAwesomeIcon sx={{ color: '#fff', fontSize: 24 }} />
+            <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 22 }} />
           </Box>
           <Typography sx={{ fontWeight: 800, fontSize: '1.2rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
             RepoMind
@@ -171,9 +172,9 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
         {/* PROCESSING REPOSITORY LABEL */}
         <Typography
           sx={{
-            fontSize: '0.75rem',
+            fontSize: '0.725rem',
             fontWeight: 700,
-            color: '#6c63ff',
+            color: '#ffd21f',
             letterSpacing: '2px',
             textTransform: 'uppercase',
             mb: 1,
@@ -189,7 +190,7 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
             fontWeight: 800,
             color: '#ffffff',
             mb: 4,
-            fontSize: { xs: '1.75rem', sm: '2.2rem' },
+            fontSize: { xs: '1.75rem', sm: '2.1rem' },
             letterSpacing: '-0.02em',
           }}
         >
@@ -214,24 +215,24 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
             return (
               <Box key={step} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 {isDone ? (
-                  <CheckCircleIcon sx={{ color: '#00c896', fontSize: 20 }} />
+                  <CheckCircleIcon sx={{ color: '#ffd21f', fontSize: 18 }} />
                 ) : isCurrent ? (
-                  <CircularProgress size={18} sx={{ color: '#6c63ff' }} />
+                  <CircularProgress size={16} sx={{ color: '#ffd21f' }} />
                 ) : (
                   <Box
                     sx={{
-                      width: 18,
-                      height: 18,
+                      width: 16,
+                      height: 16,
                       borderRadius: '50%',
-                      border: '2px solid rgba(255, 255, 255, 0.15)',
+                      border: '2px solid #333333',
                     }}
                   />
                 )}
                 <Typography
                   sx={{
-                    fontSize: '0.9rem',
+                    fontSize: '0.875rem',
                     fontWeight: isCurrent ? 600 : 400,
-                    color: isDone ? '#00c896' : isCurrent ? '#ffffff' : '#555577',
+                    color: isDone ? '#ffd21f' : isCurrent ? '#ffffff' : '#555555',
                     transition: 'color 0.3s ease',
                   }}
                 >

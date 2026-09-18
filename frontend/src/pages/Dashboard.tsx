@@ -58,16 +58,16 @@ const StatusBadge = ({ status }: { status: Repository['status'] }) => {
   if (status === 'SUCCESS') {
     return (
       <Chip
-        icon={<CheckCircleOutlinedIcon sx={{ fontSize: '14px !important', color: '#00c896 !important' }} />}
+        icon={<CheckCircleOutlinedIcon sx={{ fontSize: '13px !important', color: '#ffd21f !important' }} />}
         label="Analysed"
         size="small"
         sx={{
-          background: 'rgba(0, 200, 150, 0.1)',
-          color: '#00c896',
-          border: '1px solid rgba(0, 200, 150, 0.25)',
-          fontSize: '0.725rem',
+          background: 'rgba(255, 210, 31, 0.08)',
+          color: '#ffd21f',
+          border: '1px solid rgba(255, 210, 31, 0.25)',
+          fontSize: '0.7rem',
           fontWeight: 600,
-          '& .MuiChip-label': { px: 1 },
+          '& .MuiChip-label': { px: 0.8 },
         }}
       />
     );
@@ -75,32 +75,32 @@ const StatusBadge = ({ status }: { status: Repository['status'] }) => {
   if (status === 'PROCESSING' || status === 'PENDING') {
     return (
       <Chip
-        icon={<CircularProgress size={12} sx={{ color: '#6c63ff !important' }} />}
+        icon={<CircularProgress size={11} sx={{ color: '#ffd21f !important' }} />}
         label="Analysing"
         size="small"
         sx={{
-          background: 'rgba(108, 99, 255, 0.1)',
-          color: '#8b84ff',
-          border: '1px solid rgba(108, 99, 255, 0.25)',
-          fontSize: '0.725rem',
+          background: 'rgba(255, 210, 31, 0.1)',
+          color: '#ffd21f',
+          border: '1px solid rgba(255, 210, 31, 0.3)',
+          fontSize: '0.7rem',
           fontWeight: 600,
-          '& .MuiChip-label': { px: 1 },
+          '& .MuiChip-label': { px: 0.8 },
         }}
       />
     );
   }
   return (
     <Chip
-      icon={<ErrorOutlinedIcon sx={{ fontSize: '14px !important', color: '#ef5350 !important' }} />}
+      icon={<ErrorOutlinedIcon sx={{ fontSize: '13px !important', color: '#ef5350 !important' }} />}
       label="Failed"
       size="small"
       sx={{
-        background: 'rgba(239, 83, 80, 0.1)',
+        background: 'rgba(239, 83, 80, 0.08)',
         color: '#ef5350',
         border: '1px solid rgba(239, 83, 80, 0.25)',
-        fontSize: '0.725rem',
+        fontSize: '0.7rem',
         fontWeight: 600,
-        '& .MuiChip-label': { px: 1 },
+        '& .MuiChip-label': { px: 0.8 },
       }}
     />
   );
@@ -110,14 +110,14 @@ const StatusBadge = ({ status }: { status: Repository['status'] }) => {
 const LANG_COLORS: Record<string, string> = {
   Python: '#3776ab',
   TypeScript: '#3178c6',
-  JavaScript: '#f7df1e',
+  JavaScript: '#ffd21f',
   Java: '#b07219',
   Go: '#00add8',
   Rust: '#dea584',
   Ruby: '#701516',
   PHP: '#4f5d95',
   'C++': '#f34b7d',
-  C: '#555555',
+  C: '#737373',
   'C#': '#178600',
   Swift: '#f05138',
   Kotlin: '#a97bff',
@@ -247,27 +247,27 @@ export const Dashboard: React.FC = () => {
               color: '#ffffff',
               letterSpacing: '-0.02em',
               mb: 0.5,
-              fontSize: { xs: '1.75rem', sm: '2.2rem' },
+              fontSize: { xs: '1.75rem', sm: '2.1rem' },
             }}
           >
             Welcome back, {user?.first_name || 'Developer'}
           </Typography>
-          <Typography sx={{ color: '#8888aa', fontSize: '0.95rem' }}>
-            Monitor, analyze, and gain deep intelligence on your repositories.
+          <Typography sx={{ color: '#a3a3a3', fontSize: '0.925rem' }}>
+            Monitor, analyze, and gain deep intelligence on your engineering repositories.
           </Typography>
         </Box>
 
         {/* Main Banner: Analyse a Repository */}
         <Card
           sx={{
-            background: 'linear-gradient(135deg, rgba(18, 18, 28, 0.9) 0%, rgba(13, 13, 20, 0.9) 100%)',
-            border: '1px solid rgba(108, 99, 255, 0.25)',
-            borderRadius: '20px',
-            p: { xs: 3, md: 4 },
-            mb: 5,
+            background: '#111111',
+            border: '1px solid #262626',
+            borderRadius: '16px',
+            p: { xs: 3, md: 3.5 },
+            mb: 4.5,
             position: 'relative',
             overflow: 'hidden',
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(108, 99, 255, 0.1)',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.6)',
           }}
         >
           {/* Subtle background glow circle */}
@@ -276,10 +276,10 @@ export const Dashboard: React.FC = () => {
               position: 'absolute',
               top: '-30%',
               right: '-10%',
-              width: 300,
-              height: 300,
+              width: 320,
+              height: 320,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(108,99,255,0.15) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(255, 210, 31, 0.06) 0%, transparent 70%)',
               pointerEvents: 'none',
             }}
           />
@@ -287,26 +287,26 @@ export const Dashboard: React.FC = () => {
           <Box sx={{ position: 'relative', zIndex: 1 }}>
             {/* AI Pill Badge */}
             <Chip
-              icon={<AutoAwesomeIcon sx={{ fontSize: '14px !important', color: '#8b84ff !important' }} />}
+              icon={<AutoAwesomeIcon sx={{ fontSize: '13px !important', color: '#ffd21f !important' }} />}
               label="AI-Powered Analysis"
               size="small"
               sx={{
-                background: 'rgba(108, 99, 255, 0.12)',
-                color: '#a0a0ff',
-                border: '1px solid rgba(108, 99, 255, 0.25)',
+                background: '#161616',
+                color: '#ffd21f',
+                border: '1px solid rgba(255, 210, 31, 0.3)',
                 fontWeight: 600,
-                fontSize: '0.75rem',
-                mb: 2,
+                fontSize: '0.725rem',
+                mb: 1.5,
               }}
             />
 
             <Typography
               variant="h5"
-              sx={{ fontWeight: 800, color: '#ffffff', mb: 1, letterSpacing: '-0.01em' }}
+              sx={{ fontWeight: 800, color: '#ffffff', mb: 0.8, letterSpacing: '-0.01em' }}
             >
               Analyse a Repository
             </Typography>
-            <Typography sx={{ color: '#8888aa', fontSize: '0.9rem', maxWidth: 580, mb: 3, lineHeight: 1.6 }}>
+            <Typography sx={{ color: '#a3a3a3', fontSize: '0.875rem', maxWidth: 600, mb: 3, lineHeight: 1.6 }}>
               Enter a GitHub repository URL to instantly generate comprehensive architecture maps, dependency trees, and security intelligence.
             </Typography>
 
@@ -321,19 +321,19 @@ export const Dashboard: React.FC = () => {
                   flex: 1,
                   display: 'flex',
                   alignItems: 'center',
-                  background: 'rgba(0, 0, 0, 0.4)',
-                  border: errors.url ? '1px solid #ef5350' : '1px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: '12px',
+                  background: '#0a0a0a',
+                  border: errors.url ? '1px solid #ef5350' : '1px solid #262626',
+                  borderRadius: '10px',
                   px: 2,
-                  py: 0.5,
+                  py: 0.4,
                   transition: 'all 0.2s ease',
                   '&:focus-within': {
-                    borderColor: '#6c63ff',
-                    boxShadow: '0 0 15px rgba(108,99,255,0.3)',
+                    borderColor: '#ffd21f',
+                    boxShadow: '0 0 15px rgba(255, 210, 31, 0.15)',
                   },
                 }}
               >
-                <GitHubIcon sx={{ color: '#666688', mr: 1.5, fontSize: 20 }} />
+                <GitHubIcon sx={{ color: '#737373', mr: 1.5, fontSize: 18 }} />
                 <TextField
                   {...register('url')}
                   fullWidth
@@ -345,8 +345,8 @@ export const Dashboard: React.FC = () => {
                       disableUnderline: true,
                       sx: {
                         color: '#ffffff',
-                        fontSize: '0.925rem',
-                        '& input::placeholder': { color: '#555577', opacity: 1 },
+                        fontSize: '0.875rem',
+                        '& input::placeholder': { color: '#737373', opacity: 1 },
                       },
                     },
                   }}
@@ -357,21 +357,22 @@ export const Dashboard: React.FC = () => {
                 type="submit"
                 variant="contained"
                 disabled={isAnalysing}
-                endIcon={<ArrowForwardIcon />}
+                endIcon={<ArrowForwardIcon fontSize="small" />}
                 sx={{
-                  height: 48,
+                  height: 44,
                   px: 3.5,
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%)',
+                  borderRadius: '10px',
+                  background: '#ffd21f',
+                  color: '#050505',
                   fontWeight: 700,
                   textTransform: 'none',
-                  fontSize: '0.9rem',
-                  boxShadow: '0 4px 20px rgba(108, 99, 255, 0.4)',
+                  fontSize: '0.875rem',
+                  boxShadow: '0 2px 14px rgba(255, 210, 31, 0.25)',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #7c73ff 0%, #5f56f5 100%)',
-                    boxShadow: '0 6px 25px rgba(108, 99, 255, 0.6)',
+                    background: '#ffe033',
+                    boxShadow: '0 4px 20px rgba(255, 210, 31, 0.4)',
                   },
-                  '&:disabled': { opacity: 0.6 },
+                  '&:disabled': { opacity: 0.5 },
                 }}
               >
                 Analyse
@@ -389,9 +390,9 @@ export const Dashboard: React.FC = () => {
         {repositories.length === 0 ? (
           <Card
             sx={{
-              background: '#0c0c14',
-              border: '1px dashed rgba(255, 255, 255, 0.1)',
-              borderRadius: '20px',
+              background: '#0d0d0d',
+              border: '1px dashed #262626',
+              borderRadius: '16px',
               p: { xs: 4, md: 8 },
               textAlign: 'center',
               position: 'relative',
@@ -401,53 +402,53 @@ export const Dashboard: React.FC = () => {
             {/* Central Glowing Globe Graphic */}
             <Box
               sx={{
-                width: 140,
-                height: 140,
+                width: 120,
+                height: 120,
                 mx: 'auto',
                 mb: 3,
                 borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(108, 99, 255, 0.3) 0%, rgba(0, 200, 150, 0.1) 60%, transparent 80%)',
-                border: '1px solid rgba(108, 99, 255, 0.3)',
+                background: '#111111',
+                border: '1px solid rgba(255, 210, 31, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 50px rgba(108, 99, 255, 0.25)',
-                position: 'relative',
+                boxShadow: '0 0 40px rgba(255, 210, 31, 0.12)',
               }}
             >
-              <AutoAwesomeIcon sx={{ fontSize: 54, color: '#6c63ff' }} />
+              <AutoAwesomeIcon sx={{ fontSize: 44, color: '#ffd21f' }} />
             </Box>
 
             <Typography variant="h5" sx={{ fontWeight: 800, color: '#ffffff', mb: 1 }}>
               Your repositories will appear here
             </Typography>
-            <Typography sx={{ color: '#8888aa', fontSize: '0.95rem', maxWidth: 500, mx: 'auto', mb: 4 }}>
-              Paste your first GitHub repository URL to begin analysing its architecture, history, and intelligence.
+            <Typography sx={{ color: '#a3a3a3', fontSize: '0.9rem', maxWidth: 480, mx: 'auto', mb: 4 }}>
+              Paste your first GitHub repository URL above to begin analysing its architecture, history, and intelligence.
             </Typography>
 
             {/* Popular Repository Tags */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-              <Typography sx={{ fontSize: '0.75rem', color: '#555577', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', mr: 1 }}>
+              <Typography sx={{ fontSize: '0.72rem', color: '#737373', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', mr: 1 }}>
                 OR TRY A POPULAR REPOSITORY
               </Typography>
               {POPULAR_REPOS.map((repo) => (
                 <Chip
                   key={repo.name}
-                  icon={<GitHubIcon sx={{ fontSize: '14px !important', color: '#8888aa !important' }} />}
+                  icon={<GitHubIcon sx={{ fontSize: '13px !important', color: '#a3a3a3 !important' }} />}
                   label={repo.name}
                   onClick={() => handlePopularClick(repo.url)}
                   sx={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    color: '#c0c0e0',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: '#151515',
+                    color: '#e5e5e5',
+                    border: '1px solid #262626',
                     cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    py: 1.5,
+                    fontSize: '0.78rem',
+                    py: 1.2,
                     px: 0.5,
+                    transition: 'all 0.2s ease',
                     '&:hover': {
-                      background: 'rgba(108, 99, 255, 0.15)',
-                      borderColor: 'rgba(108, 99, 255, 0.35)',
-                      color: '#ffffff',
+                      background: '#1a1a1a',
+                      borderColor: '#ffd21f',
+                      color: '#ffd21f',
                     },
                   }}
                 />
@@ -459,8 +460,16 @@ export const Dashboard: React.FC = () => {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SearchIcon sx={{ color: '#6c63ff', fontSize: 20 }} />
-                <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#ffffff' }}>
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: '#ffd21f',
+                    boxShadow: '0 0 8px #ffd21f',
+                  }}
+                />
+                <Typography sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#ffffff' }}>
                   Recent Repositories
                 </Typography>
               </Box>
@@ -470,20 +479,19 @@ export const Dashboard: React.FC = () => {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.07)',
-                  borderRadius: '10px',
+                  background: '#0f0f0f',
+                  border: '1px solid #262626',
+                  borderRadius: '8px',
                   px: 1.5,
                   py: 0.3,
                   width: 200,
                   transition: 'all 0.2s ease',
                   '&:focus-within': {
-                    border: '1px solid rgba(108, 99, 255, 0.5)',
-                    background: 'rgba(108, 99, 255, 0.05)',
+                    borderColor: '#ffd21f',
                   },
                 }}
               >
-                <SearchIcon sx={{ color: '#555577', fontSize: 16, mr: 0.8 }} />
+                <SearchIcon sx={{ color: '#737373', fontSize: 16, mr: 0.8 }} />
                 <TextField
                   variant="standard"
                   placeholder="Filter repos..."
@@ -493,9 +501,9 @@ export const Dashboard: React.FC = () => {
                     input: {
                       disableUnderline: true,
                       sx: {
-                        color: '#e0e0ff',
+                        color: '#ffffff',
                         fontSize: '0.8rem',
-                        '& input::placeholder': { color: '#555577', opacity: 1 },
+                        '& input::placeholder': { color: '#737373', opacity: 1 },
                       },
                     },
                   }}
@@ -507,47 +515,47 @@ export const Dashboard: React.FC = () => {
             <Grid container spacing={2.5}>
               {filteredRepos.map((repo) => {
                 const primaryLang = repo.languages[0] || 'Code';
-                const langColor = LANG_COLORS[primaryLang] || '#6c63ff';
+                const langColor = LANG_COLORS[primaryLang] || '#ffd21f';
 
                 return (
                   <Grid size={{ xs: 12, sm: 6, md: 4 }} key={repo.id}>
                     <Card
                       onClick={() => navigate(`/repository/${repo.id}`)}
                       sx={{
-                        background: '#0d0d16',
-                        border: '1px solid rgba(255, 255, 255, 0.07)',
-                        borderRadius: '16px',
+                        background: '#111111',
+                        border: '1px solid #262626',
+                        borderRadius: '14px',
                         cursor: 'pointer',
-                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
                         height: '100%',
                         '&:hover': {
-                          border: '1px solid rgba(108, 99, 255, 0.4)',
-                          background: 'rgba(18, 18, 28, 0.9)',
-                          transform: 'translateY(-3px)',
-                          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(108, 99, 255, 0.15)',
+                          border: '1px solid rgba(255, 210, 31, 0.4)',
+                          background: '#151515',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 25px rgba(0, 0, 0, 0.7), 0 0 15px rgba(255, 210, 31, 0.08)',
                         },
                       }}
                     >
                       <CardContent sx={{ p: 2.5 }}>
                         {/* Repo Icon & Header */}
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
                           <Box
                             sx={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: '10px',
-                              background: 'rgba(255, 255, 255, 0.04)',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              width: 36,
+                              height: 36,
+                              borderRadius: '8px',
+                              background: '#161616',
+                              border: '1px solid #262626',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               flexShrink: 0,
                             }}
                           >
-                            <GitHubIcon sx={{ color: '#e0e0ff', fontSize: 20 }} />
+                            <GitHubIcon sx={{ color: '#ffffff', fontSize: 18 }} />
                           </Box>
 
                           <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -555,7 +563,7 @@ export const Dashboard: React.FC = () => {
                               noWrap
                               sx={{
                                 fontWeight: 700,
-                                fontSize: '0.975rem',
+                                fontSize: '0.925rem',
                                 color: '#ffffff',
                                 letterSpacing: '-0.01em',
                               }}
@@ -563,16 +571,16 @@ export const Dashboard: React.FC = () => {
                               {repo.owner}/{repo.name}
                             </Typography>
 
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.4 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.3 }}>
                               <Box
                                 sx={{
-                                  width: 7,
-                                  height: 7,
+                                  width: 6,
+                                  height: 6,
                                   borderRadius: '50%',
                                   background: langColor,
                                 }}
                               />
-                              <Typography sx={{ fontSize: '0.75rem', color: '#777799' }}>
+                              <Typography sx={{ fontSize: '0.725rem', color: '#737373' }}>
                                 {primaryLang} • {formatTimeAgo(repo.created_at)}
                               </Typography>
                             </Box>
@@ -583,7 +591,7 @@ export const Dashboard: React.FC = () => {
                             size="small"
                             onClick={(e) => handleDeleteClick(e, repo)}
                             sx={{
-                              color: '#555577',
+                              color: '#737373',
                               p: 0.5,
                               opacity: 0,
                               transition: 'opacity 0.2s ease',
@@ -600,7 +608,7 @@ export const Dashboard: React.FC = () => {
                           <Typography
                             sx={{
                               fontSize: '0.8rem',
-                              color: '#8888aa',
+                              color: '#a3a3a3',
                               lineHeight: 1.5,
                               display: '-webkit-box',
                               WebkitLineClamp: 2,
@@ -617,8 +625,8 @@ export const Dashboard: React.FC = () => {
                       <Box
                         sx={{
                           px: 2.5,
-                          py: 1.5,
-                          borderTop: '1px solid rgba(255, 255, 255, 0.04)',
+                          py: 1.25,
+                          borderTop: '1px solid #1c1c1c',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
@@ -628,13 +636,13 @@ export const Dashboard: React.FC = () => {
 
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <StarBorderIcon sx={{ fontSize: 14, color: '#666688' }} />
-                            <Typography sx={{ fontSize: '0.75rem', color: '#777799' }}>
+                            <StarBorderIcon sx={{ fontSize: 13, color: '#737373' }} />
+                            <Typography sx={{ fontSize: '0.725rem', color: '#737373' }}>
                               {repo.file_count || 0}
                             </Typography>
                           </Box>
-                          <IconButton size="small" sx={{ color: '#555577', p: 0.5 }}>
-                            <ArrowForwardIcon sx={{ fontSize: 16 }} />
+                          <IconButton size="small" sx={{ color: '#737373', p: 0.4, '&:hover': { color: '#ffd21f' } }}>
+                            <ArrowForwardIcon sx={{ fontSize: 15 }} />
                           </IconButton>
                         </Box>
                       </Box>
@@ -647,9 +655,9 @@ export const Dashboard: React.FC = () => {
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <Card
                   sx={{
-                    background: 'rgba(255, 255, 255, 0.01)',
-                    border: '1px dashed rgba(255, 255, 255, 0.08)',
-                    borderRadius: '16px',
+                    background: '#0a0a0a',
+                    border: '1px dashed #262626',
+                    borderRadius: '14px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -660,8 +668,8 @@ export const Dashboard: React.FC = () => {
                     height: '100%',
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      borderColor: 'rgba(108, 99, 255, 0.3)',
-                      background: 'rgba(108, 99, 255, 0.03)',
+                      borderColor: 'rgba(255, 210, 31, 0.4)',
+                      background: '#0f0f0f',
                     },
                   }}
                 >
@@ -670,20 +678,21 @@ export const Dashboard: React.FC = () => {
                       width: 36,
                       height: 36,
                       borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.04)',
+                      background: '#151515',
+                      border: '1px solid #262626',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       mb: 1.5,
                     }}
                   >
-                    <SearchIcon sx={{ color: '#666688', fontSize: 18 }} />
+                    <SearchIcon sx={{ color: '#ffd21f', fontSize: 18 }} />
                   </Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: '#ffffff', mb: 0.5 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: '#ffffff', mb: 0.5 }}>
                     Discover More
                   </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#666688', maxWidth: 200 }}>
-                    Connect organizational repos or find open source projects
+                  <Typography sx={{ fontSize: '0.75rem', color: '#737373', maxWidth: 200 }}>
+                    Connect organizational repos or explore open source projects
                   </Typography>
                 </Card>
               </Grid>
@@ -699,21 +708,21 @@ export const Dashboard: React.FC = () => {
         slotProps={{
           paper: {
             sx: {
-              background: '#12121c',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '16px',
+              background: '#111111',
+              border: '1px solid #262626',
+              borderRadius: '14px',
               maxWidth: 400,
             },
           },
         }}
       >
-        <DialogTitle sx={{ color: '#ffffff', fontWeight: 700, fontSize: '1.1rem' }}>
+        <DialogTitle sx={{ color: '#ffffff', fontWeight: 700, fontSize: '1.05rem' }}>
           Delete Repository
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: '#8888aa', fontSize: '0.9rem' }}>
+          <DialogContentText sx={{ color: '#a3a3a3', fontSize: '0.875rem' }}>
             Are you sure you want to delete{' '}
-            <strong style={{ color: '#e0e0ff' }}>
+            <strong style={{ color: '#ffffff' }}>
               {repoToDelete?.owner}/{repoToDelete?.name}
             </strong>
             ? This action cannot be undone.
@@ -723,12 +732,12 @@ export const Dashboard: React.FC = () => {
           <Button
             onClick={() => setDeleteDialogOpen(false)}
             sx={{
-              color: '#8888aa',
+              color: '#a3a3a3',
               textTransform: 'none',
               fontWeight: 600,
-              borderRadius: '10px',
+              borderRadius: '8px',
               px: 2,
-              '&:hover': { background: 'rgba(255, 255, 255, 0.05)' },
+              '&:hover': { background: '#1a1a1a', color: '#ffffff' },
             }}
           >
             Cancel
@@ -740,7 +749,7 @@ export const Dashboard: React.FC = () => {
               background: '#ef5350',
               textTransform: 'none',
               fontWeight: 700,
-              borderRadius: '10px',
+              borderRadius: '8px',
               px: 2.5,
               '&:hover': { background: '#d32f2f' },
             }}

@@ -18,10 +18,10 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
           alignItems: 'center',
           justifyContent: 'center',
           minHeight: '100vh',
-          background: '#0a0a0f',
+          background: '#050505',
         }}
       >
-        <CircularProgress sx={{ color: '#6c63ff' }} size={48} />
+        <CircularProgress sx={{ color: '#ffd21f' }} size={44} />
       </Box>
     );
   }
