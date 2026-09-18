@@ -134,17 +134,20 @@ def build_context(repository_name: str, chunks: list[dict]) -> str:
             date = chunk.get('committed_date', '')
             if isinstance(date, str) and len(date) > 10:
                 date = date[:10]
+            commit_url = chunk.get('commit_url', '')
 
             block_parts = [
                 f'SOURCE {source_idx}',
                 'Type: git_commit',
-                f'SHA: {commit_sha[:7]}',
+                f'SHA: {commit_sha}',
+                f'Short SHA: {commit_sha[:7]}',
                 f'Author: {author}',
                 f'Date: {date}',
-                '',
-                'COMMIT MESSAGE:',
             ]
-            # Split content: first part is commit header (already formatted), rest is body
+            if commit_url:
+                block_parts.append(f'GitHub Link: {commit_url}')
+            block_parts.append('')
+            block_parts.append('COMMIT DETAILS & MESSAGE:')
             block_parts.append(content)
             block_parts.append('')
         else:
@@ -199,5 +202,6 @@ def format_sources(chunks: list[dict]) -> list[dict]:
             source['commit_sha'] = c.get('commit_sha', '')
             source['author_name'] = c.get('author_name', '')
             source['committed_date'] = c.get('committed_date', '')
+            source['commit_url'] = c.get('commit_url', '')
         sources.append(source)
     return sources

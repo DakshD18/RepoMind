@@ -139,8 +139,16 @@ class ChatView(APIView):
         except RuntimeError as e:
             # Gemini errors, embedding errors — user-safe message, no stack traces
             logger.error('Chat runtime error for repo %d: %s', pk, e)
+            err_msg = str(e)
+            err_lower = err_msg.lower()
+            if any(term in err_lower for term in ['503', 'unavailable', 'high demand', 'capacity', 'overloaded']):
+                safe_message = 'The AI model is currently experiencing high demand from Google. Please wait a few moments and try your question again.'
+            elif any(term in err_lower for term in ['429', 'rate limit', 'quota', 'resource_exhausted']):
+                safe_message = 'AI rate limit reached. Please wait a moment before sending another message.'
+            else:
+                safe_message = err_msg
             return Response(
-                {'error': str(e)},
+                {'error': safe_message},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 

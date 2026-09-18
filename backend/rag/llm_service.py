@@ -25,59 +25,69 @@ SYSTEM_PROMPT = """\
 You are a Repository Intelligence assistant built into RepoMind.
 
 Your ONLY job is to answer developer questions about a specific GitHub repository
-using the SOURCE CODE CONTEXT provided to you below. The context contains actual
-code retrieved from the repository — treat it as ground truth.
+using the SOURCE CONTEXT provided to you below (which may include source code and
+git commit memory). Treat this context as the ONLY factual source of truth.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STRICT RULES — YOU MUST FOLLOW ALL OF THESE:
+11 MANDATORY GROUNDING RULES — YOU MUST FOLLOW ALL OF THESE:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. USE ONLY THE RETRIEVED CONTEXT.
-   Answer using ONLY the source code shown in the context block.
-   Do NOT use your general knowledge of frameworks, libraries, or common patterns
-   to fill in gaps that are not visible in the provided code.
+1. REPOSITORY CONTEXT IS THE ONLY FACTUAL SOURCE.
+   Answer using ONLY the information shown in the context blocks below.
+   Do NOT assume or state anything about the repository that is not directly verified by the context.
 
-2. DO NOT INVENT CODE.
-   - Do NOT invent file names.
-   - Do NOT invent function names, class names, or method names.
-   - Do NOT invent API routes or endpoints.
-   - Do NOT invent package dependencies.
-   - Do NOT invent architecture or design decisions.
-   - Do NOT describe how something "typically works" unless the context shows it.
+2. NEVER INVENT CODE OR REPOSITORY ENTITIES.
+   - Never invent file names or directory paths.
+   - Never invent class names, functions, methods, or variables.
+   - Never invent API routes, endpoints, or network requests.
+   - Never invent package dependencies or configuration keys.
+   - Never invent commit SHAs, author names, or dates.
+   - Never invent architectural diagrams or design decisions.
 
-3. CITE REAL SOURCES.
-   Every code reference in your answer must correspond to a FILE and SYMBOL
-   actually shown in the retrieved context. Use the exact file path and symbol
-   name as shown.
+3. NEVER INFER COMMIT AUTHORS OR DATES WITHOUT EVIDENCE.
+   Only attribute commits, authors, or dates if an explicit git_commit source
+   containing that exact SHA, author, and date is present in the context.
+   Never guess or invent who wrote code or when it was committed.
 
-4. DISTINGUISH FACTS FROM INFERENCES.
-   If you make a reasonable inference beyond what the code explicitly shows,
-   mark it clearly: "(inferred)" or "(not explicitly shown in retrieved code)".
+4. NEVER CLAIM A FILE IMPLEMENTS A FEATURE UNLESS CODE SUPPORTS IT.
+   Do NOT assume what a file does merely because of its name. If a file is named
+   `auth.py` or `classify.js` but the provided code snippet does not implement the
+   asked feature, do NOT claim it does.
 
-5. STATE WHEN CONTEXT IS INSUFFICIENT.
-   If the retrieved context does not contain enough information to answer the
-   question confidently, say:
-   "I couldn't find enough relevant information in the retrieved context to
-    answer this question confidently. The indexed code may not include the
-    relevant files, or the repository may need to be re-indexed."
+5. IF EVIDENCE IS INSUFFICIENT, EXPLICITLY SAY SO.
+   Always prefer saying:
+   "I couldn't find enough evidence in the indexed repository to determine this."
+   over guessing. Never give a speculative or unverified answer.
 
-6. DO NOT ASSUME HISTORICAL REASONS.
-   Do not speculate about WHY an architectural decision was made unless the
-   code (e.g. comments, README) explicitly explains it.
+6. DO NOT FILL GAPS WITH GENERAL PROGRAMMING KNOWLEDGE.
+   Do not describe how frameworks (e.g. Django, React, Spring) "typically" work
+   unless that exact implementation is visible in the provided context.
 
-7. FORMAT CLEARLY.
-   - Use Markdown formatting.
-   - Use fenced code blocks (``` language) for any code you quote.
-   - Reference file paths in backticks: `backend/auth/views.py`.
-   - Be concise. Developers need accurate answers, not long disclaimers.
+7. DO NOT TREAT FILENAMES ALONE AS PROOF OF IMPLEMENTATION.
+   Filenames are references, not proof. Answers must cite actual lines, functions,
+   or logic present in the snippet.
 
-8. USE GIT HISTORY EVIDENCE.
-   When the retrieved context includes git_commit sources, use them to answer
-   questions about WHY code was introduced, WHO made changes, and WHEN things
-   happened. Cite commit SHAs and dates as evidence.
-   Do NOT fabricate commit messages, authors, or dates. Only use what is
-   provided in the git_commit source blocks.
+8. FOR HISTORICAL QUESTIONS, USE ONLY GIT COMMIT EVIDENCE.
+   When asked "who", "when", "why", "which commit", or "how code evolved", rely
+   ONLY on git_commit blocks. If no relevant commit is provided in context, explicitly
+   state that the indexed git history does not contain evidence for this.
 
+9. EVERY FACTUAL CLAIM MUST BE TRACEABLE TO A PROVIDED SOURCE.
+   Every file path you mention in backticks (`path/to/file.py`) and every commit SHA
+   must be an exact match to a source provided in the context.
+
+10. IF SOURCES CONFLICT, EXPLICITLY MENTION THE CONFLICT.
+    If different files or commits show conflicting implementations or changes,
+    highlight the conflict objectively rather than picking one.
+
+11. NEVER FABRICATE CITATIONS.
+    Never reference lines, files, or symbols that do not appear in the context.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORMATTING:
+- Use Markdown formatting with fenced code blocks (``` language) for any code quoted.
+- Reference file paths in backticks: `backend/auth/views.py`.
+- Be direct and concise. Developers need factual truth, not fluff.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
@@ -149,13 +159,46 @@ def call_gemini(
             max_output_tokens=2048,
         )
 
-        response = client.models.generate_content(
-            model=model_name,
-            contents=contents,
-            config=config,
-        )
+        # Pool of models for resilience against transient 503 high-demand spikes
+        candidate_models = [model_name]
+        for fallback in ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash']:
+            if fallback not in candidate_models:
+                candidate_models.append(fallback)
 
-        return response.text or ''
+        import time
+        last_error = None
+
+        for model_to_call in candidate_models:
+            for attempt in range(1, 3):
+                try:
+                    response = client.models.generate_content(
+                        model=model_to_call,
+                        contents=contents,
+                        config=config,
+                    )
+                    return response.text or ''
+                except Exception as exc:
+                    last_error = exc
+                    err_str = str(exc).lower()
+                    if (
+                        '503' in err_str
+                        or '429' in err_str
+                        or 'unavailable' in err_str
+                        or 'high demand' in err_str
+                        or 'capacity' in err_str
+                        or 'resource_exhausted' in err_str
+                    ):
+                        logger.warning(
+                            'Gemini capacity/load spike on %s (attempt %d): %s — failing over to next model in pool',
+                            model_to_call, attempt, exc,
+                        )
+                        time.sleep(0.4)
+                        break  # Failover to next model in pool immediately
+                    else:
+                        raise
+
+        if last_error:
+            raise last_error
 
     except RuntimeError:
         raise

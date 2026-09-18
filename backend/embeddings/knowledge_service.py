@@ -203,13 +203,7 @@ def _apply_pgvector_column(repository) -> None:
 # ─── Keyword / Identifier Search ───────────────────────────────────────────────
 
 def _extract_search_tokens(query: str) -> list[str]:
-    """
-    Extract tokens from the query that are likely to be code identifiers,
-    file names, or significant keywords.
-    Returns lowercase tokens.
-    """
-    tokens = set()
-
+    """Tokenize query for keyword search; strips common English stopwords and expands concept synonyms."""
     _STOP = {
         'where', 'what', 'which', 'how', 'when', 'why', 'does', 'this', 'that', 'with',
         'from', 'into', 'used', 'using', 'use', 'uses',
@@ -228,33 +222,19 @@ def _extract_search_tokens(query: str) -> list[str]:
         'repository', 'repo', 'project', 'application', 'app', 'system', 'data',
         'the', 'and', 'for', 'not', 'but', 'are', 'was', 'were', 'been',
         'have', 'has', 'had', 'about', 'some', 'there', 'their', 'them',
+        'who', 'did', 'all', 'thid', 'teh',
     }
 
+    tokens = set()
     for m in re.finditer(r'[a-zA-Z_][a-zA-Z0-9_]{2,}', query):
         w = m.group(0).lower()
         if w not in _STOP:
             tokens.add(w)
-            if w.endswith('ies') and len(w) > 3:
-                tokens.add(w[:-3] + 'y')
-            elif w.endswith('es') and len(w) > 3:
-                tokens.add(w[:-2])
-            elif w.endswith('s') and len(w) > 2:
-                tokens.add(w[:-1])
-            if w.endswith('ing') and len(w) > 4:
-                tokens.add(w[:-3])
-                tokens.add(w[:-3] + 'e')
-            if w.endswith('ed') and len(w) > 3:
-                tokens.add(w[:-2])
-                tokens.add(w[:-1])
 
-    # API routes like /api/auth/google/
-    for m in re.finditer(r'/[a-zA-Z][a-zA-Z0-9/_-]+/', query):
-        parts = [p.lower() for p in m.group(0).split('/') if p]
-        tokens.update(parts)
-
-    tokens -= _STOP
-
-    return [t for t in tokens if len(t) >= 3]
+    valid_tokens = {t for t in tokens if len(t) >= 3}
+    from rag.reranker import expand_concept_synonyms
+    expanded = expand_concept_synonyms(valid_tokens)
+    return list(expanded or valid_tokens)
 
 
 def _keyword_search(repository_id: int, query: str, limit: int) -> list[dict]:
@@ -286,13 +266,17 @@ def _keyword_search(repository_id: int, query: str, limit: int) -> list[dict]:
             Q(file_path__iexact='package.json') |
             Q(file_path__iexact='pyproject.toml') |
             Q(file_path__icontains='app.tsx') |
-            Q(file_path__icontains='main.py')
+            Q(file_path__icontains='main.py') |
+            Q(file_path__icontains='index.php') |
+            Q(file_path__icontains='index.html') |
+            Q(file_path__icontains='index.js')
         )
         text_q |= doc_q
 
     qs = (
         CodeChunk.objects
         .filter(filter_q & text_q)
+        .exclude(file_path__iregex=r'\.(ctg\.z|z|otf|ttf|woff|woff2|eot|icc|ai|fdf)$')
         .values('id', 'file_path', 'symbol_name', 'class_name',
                 'symbol_type', 'start_line', 'end_line', 'content')[:limit]
     )
@@ -321,6 +305,7 @@ def _search_pgvector(repository_id: int, query_vec: list[float], limit: int) -> 
     """
     Database-side cosine distance search using pgvector.
     similarity = 1 - cosine_distance (using <=> operator).
+    Filters out binary font assets and prioritizes core application code over vendor chunks.
     """
     vec_literal = '[' + ','.join(str(v) for v in query_vec) + ']'
 
@@ -338,8 +323,15 @@ def _search_pgvector(repository_id: int, query_vec: list[float], limit: int) -> 
         FROM embeddings_codechunk
         WHERE repository_id = %s
           AND embedding_vec IS NOT NULL
+          AND file_path NOT ILIKE '%%.ctg.z'
+          AND file_path NOT ILIKE '%%.otf'
+          AND file_path NOT ILIKE '%%.z'
+          AND file_path NOT ILIKE '%%.ttf'
+          AND file_path NOT ILIKE '%%.woff'
           AND 1 - (embedding_vec <=> %s::vector) >= %s
-        ORDER BY embedding_vec <=> %s::vector
+        ORDER BY
+          CASE WHEN file_path ILIKE '%%tcpdf%%' OR file_path ILIKE '%%font-awesome%%' THEN 1 ELSE 0 END ASC,
+          embedding_vec <=> %s::vector ASC
         LIMIT %s
     """
     try:
@@ -369,13 +361,16 @@ def _search_pgvector(repository_id: int, query_vec: list[float], limit: int) -> 
 def _search_python_cosine(repository_id: int, query_vec: list[float], limit: int) -> list[dict]:
     """
     Python-side cosine similarity fallback (used with SQLite in local dev).
-    Loads all embeddings for the repository into memory.
+    Loads embeddings for the repository, excluding binary font assets,
+    and prioritizing application code over vendor code.
     """
-    chunks = CodeChunk.objects.filter(
-        repository_id=repository_id,
-        embedding__isnull=False,
-    ).values('id', 'file_path', 'symbol_name', 'class_name',
-             'symbol_type', 'start_line', 'end_line', 'content', 'embedding')
+    chunks = (
+        CodeChunk.objects
+        .filter(repository_id=repository_id, embedding__isnull=False)
+        .exclude(file_path__iregex=r'\.(ctg\.z|z|otf|ttf|woff|woff2|eot|icc|ai|fdf)$')
+        .values('id', 'file_path', 'symbol_name', 'class_name',
+                'symbol_type', 'start_line', 'end_line', 'content', 'embedding')
+    )
 
     scored = []
     for chunk in chunks:
@@ -386,7 +381,14 @@ def _search_python_cosine(repository_id: int, query_vec: list[float], limit: int
         if sim >= MIN_SIMILARITY:
             scored.append((sim, chunk))
 
-    scored.sort(key=lambda x: x[0], reverse=True)
+    # Sort: non-vendor files first, then highest similarity
+    def _sort_key(item):
+        sim, c = item
+        fp = c.get('file_path', '').lower()
+        is_vendor = 1 if ('tcpdf' in fp or 'font-awesome' in fp) else 0
+        return (is_vendor, -sim)
+
+    scored.sort(key=_sort_key)
 
     return [
         {
@@ -461,46 +463,115 @@ def _search_commit_memory(
     limit: int = 5,
 ) -> list[dict]:
     """
-    Search CommitMemory records by vector similarity and keyword matching.
+    Search CommitMemory records by deterministic temporal recency, SHA matching,
+    vector similarity, and keyword matching.
     Uses PostgreSQL/pgvector when available, with fallback to Python-side similarity.
     Returns results formatted as chunk-like dicts with symbol_type='commit'
     so they flow through the existing reranker and context builder.
     """
     try:
         from memory.models import CommitMemory
+        from repositories.models import Repository
+        from rag.reranker import is_recency_query, is_initial_commit_query, extract_commit_sha
     except ImportError:
         return []
 
+    # Check repository URL / GitHub link
+    repo = Repository.objects.filter(id=repository_id).only('url', 'owner', 'name').first()
+    repo_url = repo.url.rstrip('/') if repo and repo.url else ''
+    if not repo_url and repo and repo.owner and repo.name:
+        repo_url = f"https://github.com/{repo.owner}/{repo.name}"
+
     scored: list[tuple[float, dict]] = []
+    seen_commit_ids: set[int] = set()
 
-    # 1. Try pgvector first if available
+    # 1. Deterministic Temporal Recency: "last commit", "latest commit", "most recent commit"
+    if is_recency_query(query_text):
+        recent_commits = list(
+            CommitMemory.objects.filter(repository_id=repository_id)
+            .order_by('-committed_date')
+            .values(
+                'id', 'commit_sha', 'author_name', 'author_email',
+                'committed_date', 'message', 'files_changed', 'stats',
+                'embedding',
+            )[:limit]
+        )
+        for i, cm in enumerate(recent_commits):
+            sim = max(0.98 - 0.03 * i, 0.85)
+            cm['is_recency'] = True
+            scored.append((sim, cm))
+            seen_commit_ids.add(cm['id'])
+
+    # 2. Initial / first commit queries
+    elif is_initial_commit_query(query_text):
+        initial_commits = list(
+            CommitMemory.objects.filter(repository_id=repository_id)
+            .order_by('committed_date')
+            .values(
+                'id', 'commit_sha', 'author_name', 'author_email',
+                'committed_date', 'message', 'files_changed', 'stats',
+                'embedding',
+            )[:limit]
+        )
+        for i, cm in enumerate(initial_commits):
+            sim = max(0.98 - 0.03 * i, 0.85)
+            cm['is_initial'] = True
+            scored.append((sim, cm))
+            seen_commit_ids.add(cm['id'])
+
+    # 3. Explicit commit SHA in query: "when was commit X", "commit X"
+    target_sha = extract_commit_sha(query_text)
+    if target_sha:
+        sha_commits = list(
+            CommitMemory.objects.filter(
+                repository_id=repository_id,
+                commit_sha__istartswith=target_sha,
+            ).values(
+                'id', 'commit_sha', 'author_name', 'author_email',
+                'committed_date', 'message', 'files_changed', 'stats',
+                'embedding',
+            )[:limit]
+        )
+        for cm in sha_commits:
+            if cm['id'] not in seen_commit_ids:
+                cm['is_exact_sha'] = True
+                scored.insert(0, (0.99, cm))
+                seen_commit_ids.add(cm['id'])
+
+    # 4. Semantic vector search (for general historical questions or entity search)
+    # Try pgvector first if available
     if _pgvector_available():
-        scored = _search_pgvector_commits(repository_id, query_vec, limit)
-
-    # 2. Fall back to Python cosine if pgvector not available or returned no scored results
-    if not scored:
+        pg_scored = _search_pgvector_commits(repository_id, query_vec, limit)
+        for sim, cm in pg_scored:
+            if cm['id'] not in seen_commit_ids:
+                scored.append((sim, cm))
+                seen_commit_ids.add(cm['id'])
+    else:
         commits = CommitMemory.objects.filter(
             repository_id=repository_id,
             embedding__isnull=False,
-        ).values(
+        ).exclude(id__in=seen_commit_ids).values(
             'id', 'commit_sha', 'author_name', 'author_email',
             'committed_date', 'message', 'files_changed', 'stats',
             'embedding',
         )
 
+        vector_scored = []
         for cm in commits:
             emb = cm.get('embedding')
             if not emb:
                 continue
             sim = cosine_similarity(query_vec, emb)
             if sim >= MIN_SIMILARITY:
-                scored.append((sim, cm))
+                vector_scored.append((sim, cm))
 
-        scored.sort(key=lambda x: x[0], reverse=True)
+        vector_scored.sort(key=lambda x: x[0], reverse=True)
+        for sim, cm in vector_scored[:limit]:
+            scored.append((sim, cm))
+            seen_commit_ids.add(cm['id'])
 
-    # Also do keyword matching on commit messages and file names
+    # 5. Keyword matching on commit messages and file names
     tokens = _extract_search_tokens(query_text)
-    keyword_ids = set()
     if tokens:
         kw_q = Q(repository_id=repository_id)
         text_q = Q()
@@ -509,25 +580,21 @@ def _search_commit_memory(
             text_q |= Q(author_name__icontains=token)
         keyword_commits = CommitMemory.objects.filter(
             kw_q & text_q
-        ).values(
+        ).exclude(id__in=seen_commit_ids).values(
             'id', 'commit_sha', 'author_name', 'author_email',
             'committed_date', 'message', 'files_changed', 'stats',
             'embedding',
         )[:limit]
-        keyword_ids = {cm['id'] for cm in keyword_commits}
-
-        # Add keyword matches not already in scored results
-        scored_ids = {cm['id'] for _, cm in scored}
         for cm in keyword_commits:
-            if cm['id'] not in scored_ids:
-                scored.append((0.0, cm))
+            scored.append((0.0, cm))
+            seen_commit_ids.add(cm['id'])
 
     # Build chunk-like dicts for the top results
     results = []
     for sim, cm in scored[:limit]:
         # Build content string from commit data
         files_str = ''
-        if cm['files_changed']:
+        if cm.get('files_changed'):
             file_lines = []
             for f in cm['files_changed'][:20]:
                 file_lines.append(
@@ -537,12 +604,16 @@ def _search_commit_memory(
             files_str = '\n'.join(file_lines)
 
         committed_date_str = ''
-        if cm['committed_date']:
+        if cm.get('committed_date'):
             committed_date_str = cm['committed_date'].isoformat() if hasattr(cm['committed_date'], 'isoformat') else str(cm['committed_date'])
 
-        content = f"Commit {cm['commit_sha'][:7]} by {cm['author_name']}\n"
-        content += f"Date: {committed_date_str[:10]}\n\n"
-        content += f"{cm['message']}\n"
+        commit_url = f"{repo_url}/commit/{cm['commit_sha']}" if repo_url else ""
+
+        content = f"Commit {cm['commit_sha']} ({cm['commit_sha'][:7]}) by {cm['author_name']}\n"
+        content += f"Date: {committed_date_str}\n"
+        if commit_url:
+            content += f"GitHub Link: {commit_url}\n"
+        content += f"\n{cm['message']}\n"
         if files_str:
             content += f"\nFiles Changed:\n{files_str}"
 
@@ -560,6 +631,10 @@ def _search_commit_memory(
             'commit_sha': cm['commit_sha'],
             'author_name': cm['author_name'],
             'committed_date': committed_date_str,
+            'commit_url': commit_url,
+            'is_recency': cm.get('is_recency', False),
+            'is_initial': cm.get('is_initial', False),
+            'is_exact_sha': cm.get('is_exact_sha', False),
         })
 
     return results
@@ -640,21 +715,24 @@ def search_code(
     repository_id: int,
     query_text: str,
     top_k: int = DEFAULT_TOP_K,
-) -> list[dict]:
+    return_all_evaluated: bool = False,
+):
     """
     Backward-compatible retrieval function.
 
-    Phase 2.1: now delegates to hybrid retrieval + reranking internally.
-    Returns top_k chunks (or fewer if not enough candidates pass the threshold).
+    Delegates to hybrid retrieval + absolute relevance reranking internally.
+    Returns top_k chunks that successfully passed absolute relevance gating.
 
     Args:
         repository_id: Strictly scoped repository ID.
         query_text: Natural-language question or search string.
         top_k: Final number of chunks to return.
+        return_all_evaluated: If True, returns tuple (accepted_top_k, all_evaluated_candidates)
+                              for diagnostic/debug purposes.
 
     Returns:
         List of chunk dicts with similarity, semantic_score, keyword_score,
-        identifier_score, path_score, and final_score fields.
+        identifier_score, path_score, intent_score, and final_score fields.
     """
     from rag.reranker import rerank
 
@@ -666,6 +744,11 @@ def search_code(
     )
 
     if not candidates:
-        return []
+        return ([], []) if return_all_evaluated else []
 
-    return rerank(candidates, query=query_text, top_k=top_k)
+    return rerank(
+        candidates,
+        query=query_text,
+        top_k=top_k,
+        return_all_evaluated=return_all_evaluated,
+    )

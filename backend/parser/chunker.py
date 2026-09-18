@@ -38,14 +38,15 @@ SKIP_DIRS = {
     'dist', 'build', '.next', '.cache', 'vendor', '.mypy_cache',
     '.pytest_cache', 'coverage', '.tox', 'target', 'htmlcov',
     'site-packages', 'eggs', '.eggs', 'migrations',
-    'artifacts', 'backups',
+    'artifacts', 'backups', 'tcpdf', 'TCPDF', 'fonts', 'font-awesome',
 }
 
 SKIP_EXTENSIONS = {
     '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp',
     '.mp4', '.mp3', '.wav', '.ogg',
     '.zip', '.tar', '.gz', '.bz2', '.7z',
-    '.woff', '.woff2', '.ttf', '.eot',
+    '.woff', '.woff2', '.ttf', '.eot', '.otf', '.z', '.ctg.z',
+    '.icc', '.ai', '.fdf', '.p12',
     '.pdf', '.docx', '.xlsx', '.xls', '.pptx',
     '.pyc', '.pyo', '.pyd', '.class', '.so', '.dll', '.dylib',
     '.db', '.sqlite3',

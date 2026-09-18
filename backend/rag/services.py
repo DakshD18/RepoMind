@@ -39,6 +39,8 @@ from embeddings.knowledge_service import search_code, RAG_CONTEXT_TOP_K
 from rag.context_builder import build_context, format_sources
 from rag.llm_service import call_gemini
 from rag.query_processor import build_retrieval_query
+from rag.reranker import detect_query_type, QueryType
+from rag.validator import validate_answer
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ logger = logging.getLogger(__name__)
 MAX_HISTORY_TURNS = 6
 
 # If the top reranked chunk's final_score is below this, skip Gemini
-RAG_NO_CONTEXT_THRESHOLD = float(os.getenv('RAG_NO_CONTEXT_THRESHOLD', '0.16'))
+RAG_NO_CONTEXT_THRESHOLD = float(os.getenv('RAG_NO_CONTEXT_THRESHOLD', '0.25'))
 
 
 class RepositoryNotIndexedError(Exception):
@@ -161,34 +163,111 @@ def handle_chat(
         history = history[:-1]
 
     # ── 4. Query Processing — enrich follow-up queries ───────────────────────
-    # retrieval_query may include entity hints from conversation context.
-    # message (verbatim) is still used for the Gemini generation turn.
+    query_type = detect_query_type(message)
     retrieval_query = build_retrieval_query(message, history)
 
+    # For HISTORY queries: verify if CommitMemory has been indexed for this repository
+    commit_memory_count = 0
+    if query_type == QueryType.HISTORY:
+        from memory.models import CommitMemory
+        commit_memory_count = CommitMemory.objects.filter(repository=repository).count()
+        if commit_memory_count == 0:
+            no_commits_answer = (
+                f'Commit history has not been indexed for repository "{repository.name}". '
+                'Please re-index the repository to fetch and analyze git commit history.'
+            )
+            assistant_msg = ChatMessage.objects.create(
+                session=session,
+                role=ChatMessage.ROLE_ASSISTANT,
+                content=no_commits_answer,
+                sources=[],
+            )
+            if session.title == 'New Chat':
+                session.title = _auto_title_from_question(message)
+                session.save(update_fields=['title'])
+
+            logger.info(
+                'HISTORY RETRIEVAL DEBUG:\n'
+                '  - repository ID: %d\n'
+                '  - number of CommitMemory records: 0\n'
+                '  - query type: %s\n'
+                '  - number of commit candidates: 0\n'
+                '  - top commit SHAs: []\n'
+                '  - similarity scores: []\n'
+                '  - reranked scores: []\n'
+                '  - whether the no-context guard triggered: True (empty CommitMemory)\n'
+                '  - final context length: 0',
+                repository_id, query_type,
+            )
+
+            result = {
+                'session_id': session.id,
+                'title': session.title,
+                'message_id': assistant_msg.id,
+                'answer': no_commits_answer,
+                'sources': [],
+            }
+            if debug:
+                result['retrieval_query'] = retrieval_query
+                result['query_type'] = query_type
+            return result
+
     # ── 5. Hybrid Retrieval + Reranking (repository-scoped) ──────────────────
-    # search_code() now runs: hybrid retrieval → reranker → top_k results
-    chunks = search_code(
+    res = search_code(
         repository_id=repository_id,
         query_text=retrieval_query,
         top_k=RAG_CONTEXT_TOP_K,
+        return_all_evaluated=debug,
     )
+    if isinstance(res, tuple) and len(res) == 2:
+        chunks, all_evaluated = res
+    else:
+        chunks = res
+        all_evaluated = res
 
     logger.info(
-        'RAG: repo=%d  query="%s"  retrieval_query="%s"  chunks_found=%d',
-        repository_id, message[:60], retrieval_query[:60], len(chunks),
+        'RAG: repo=%d  query_type=%s  query="%s"  chunks_found=%d',
+        repository_id, query_type, message[:60], len(chunks),
     )
 
     # ── 6. No-context handling ────────────────────────────────────────────────
-    # If no chunks or top chunk is below threshold, skip Gemini
+    # If no chunks passed the absolute relevance gate or top chunk is below threshold, skip Gemini
     top_score = chunks[0].get('final_score', chunks[0].get('similarity', 0)) if chunks else 0
+    no_context_guard_triggered = not chunks or top_score < RAG_NO_CONTEXT_THRESHOLD
 
-    if not chunks or top_score < RAG_NO_CONTEXT_THRESHOLD:
+    if no_context_guard_triggered:
+        if query_type == QueryType.HISTORY:
+            commit_candidates = [c for c in (all_evaluated or chunks) if c.get('symbol_type') == 'commit']
+            top_commit_shas = [c.get('commit_sha', '')[:7] for c in chunks if c.get('symbol_type') == 'commit'][:5]
+            sim_scores = [round(c.get('similarity', 0), 4) for c in chunks if c.get('symbol_type') == 'commit'][:5]
+            reranked_scores = [round(c.get('final_score', 0), 4) for c in chunks if c.get('symbol_type') == 'commit'][:5]
+            logger.info(
+                'HISTORY RETRIEVAL DEBUG:\n'
+                '  - repository ID: %d\n'
+                '  - number of CommitMemory records: %d\n'
+                '  - query type: %s\n'
+                '  - number of commit candidates: %d\n'
+                '  - top commit SHAs: %s\n'
+                '  - similarity scores: %s\n'
+                '  - reranked scores: %s\n'
+                '  - whether the no-context guard triggered: %s\n'
+                '  - final context length: 0',
+                repository_id,
+                commit_memory_count,
+                query_type,
+                len(commit_candidates),
+                top_commit_shas,
+                sim_scores,
+                reranked_scores,
+                no_context_guard_triggered,
+            )
+
         no_context_answer = (
             "I couldn't find enough relevant information in this repository's "
             "indexed code to answer that confidently. This can happen if:\n\n"
-            "- The relevant files haven't been indexed yet (try re-indexing).\n"
+            "- The relevant files or commits haven't been indexed yet (try re-indexing).\n"
             "- The question refers to something outside the codebase "
-            "(e.g. infrastructure, CI/CD scripts, or external services).\n"
+            "(e.g. infrastructure, external services, or uncommitted work).\n"
             "- Try rephrasing with specific file names, class names, or function names."
         )
         assistant_msg = ChatMessage.objects.create(
@@ -209,21 +288,76 @@ def handle_chat(
             'sources': [],
         }
         if debug:
-            result['debug_chunks'] = []
+            result['debug_chunks'] = [
+                {
+                    'file_path':        c.get('file_path', ''),
+                    'symbol_name':      c.get('symbol_name', ''),
+                    'source_type':      c.get('symbol_type', 'code'),
+                    'similarity':       round(c.get('semantic_score', c.get('similarity', 0)), 4),
+                    'semantic_score':   round(c.get('semantic_score', c.get('similarity', 0)), 4),
+                    'identifier_score': round(c.get('identifier_score', 0), 4),
+                    'keyword_score':    round(c.get('keyword_score', 0), 4),
+                    'path_score':       round(c.get('path_score', 0), 4),
+                    'intent_score':     round(c.get('intent_score', 0), 4),
+                    'final_score':      round(c.get('final_score', c.get('similarity', 0)), 4),
+                    'selected':         c.get('selected', False),
+                    'rejection_reason': c.get('rejection_reason', 'below absolute relevance threshold'),
+                }
+                for c in (all_evaluated or [])
+            ]
+            result['retrieval_query'] = retrieval_query
+            result['query_type'] = query_type
         return result
 
     # ── 7. Build structured context ───────────────────────────────────────────
     context = build_context(repository.name, chunks)
 
+    if query_type == QueryType.HISTORY:
+        commit_candidates = [c for c in (all_evaluated or chunks) if c.get('symbol_type') == 'commit']
+        top_commit_shas = [c.get('commit_sha', '')[:7] for c in chunks if c.get('symbol_type') == 'commit'][:5]
+        sim_scores = [round(c.get('similarity', 0), 4) for c in chunks if c.get('symbol_type') == 'commit'][:5]
+        reranked_scores = [round(c.get('final_score', 0), 4) for c in chunks if c.get('symbol_type') == 'commit'][:5]
+        logger.info(
+            'HISTORY RETRIEVAL DEBUG:\n'
+            '  - repository ID: %d\n'
+            '  - number of CommitMemory records: %d\n'
+            '  - query type: %s\n'
+            '  - number of commit candidates: %d\n'
+            '  - top commit SHAs: %s\n'
+            '  - similarity scores: %s\n'
+            '  - reranked scores: %s\n'
+            '  - whether the no-context guard triggered: False\n'
+            '  - final context length: %d',
+            repository_id,
+            commit_memory_count,
+            query_type,
+            len(commit_candidates),
+            top_commit_shas,
+            sim_scores,
+            reranked_scores,
+            len(context),
+        )
+
     # ── 8. Call Gemini (grounded) ─────────────────────────────────────────────
-    answer = call_gemini(
+    raw_answer = call_gemini(
         system_context=context,
         conversation_history=history,
         user_question=message,
     )
 
-    # ── 9. Format sources ─────────────────────────────────────────────────────
-    sources = format_sources(chunks)
+    # ── 8b. Answer Validation Layer ───────────────────────────────────────────
+    is_valid, answer, validation_errors = validate_answer(
+        answer=raw_answer,
+        context_chunks=chunks,
+        query_type=query_type,
+    )
+
+    # ── 9. Format sources (only for validated answers) ────────────────────────
+    if is_valid:
+        sources = format_sources(chunks)
+    else:
+        logger.warning('Validation failed: %s; suppressing sources', validation_errors)
+        sources = []
 
     # ── 10. Persist assistant message ─────────────────────────────────────────
     assistant_msg = ChatMessage.objects.create(
@@ -246,27 +380,27 @@ def handle_chat(
     }
 
     # ── 11. Retrieval debug mode ───────────────────────────────────────────────
-    # Only available when debug=True in the request body.
-    # Never enabled in production UI. Used to diagnose retrieval vs generation issues.
     if debug:
         result['debug_chunks'] = [
             {
-                'file_path':       c.get('file_path', ''),
-                'symbol_name':     c.get('symbol_name', ''),
-                'class_name':      c.get('class_name', ''),
-                'symbol_type':     c.get('symbol_type', 'block'),
-                'start_line':      c.get('start_line', 0),
-                'end_line':        c.get('end_line', 0),
-                'similarity':      round(c.get('semantic_score', c.get('similarity', 0)), 4),
-                'semantic_score':  round(c.get('semantic_score', c.get('similarity', 0)), 4),
-                'keyword_score':   round(c.get('keyword_score', 0), 4),
+                'file_path':        c.get('file_path', ''),
+                'symbol_name':      c.get('symbol_name', ''),
+                'source_type':      c.get('symbol_type', 'code'),
+                'similarity':       round(c.get('semantic_score', c.get('similarity', 0)), 4),
+                'semantic_score':   round(c.get('semantic_score', c.get('similarity', 0)), 4),
                 'identifier_score': round(c.get('identifier_score', 0), 4),
-                'path_score':      round(c.get('path_score', 0), 4),
-                'final_score':     round(c.get('final_score', c.get('similarity', 0)), 4),
-                'query_type':      c.get('query_type', ''),
+                'keyword_score':    round(c.get('keyword_score', 0), 4),
+                'path_score':       round(c.get('path_score', 0), 4),
+                'intent_score':     round(c.get('intent_score', 0), 4),
+                'final_score':      round(c.get('final_score', c.get('similarity', 0)), 4),
+                'selected':         c.get('selected', True),
+                'rejection_reason': c.get('rejection_reason', None),
             }
-            for c in chunks
+            for c in (all_evaluated or chunks)
         ]
         result['retrieval_query'] = retrieval_query
+        result['query_type'] = query_type
+        if not is_valid:
+            result['validation_errors'] = validation_errors
 
     return result
