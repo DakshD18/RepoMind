@@ -109,8 +109,8 @@ export const LoginPage: React.FC = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: '#050505',
-        color: '#e5e5e5',
+        background: '#050507',
+        color: '#e2e8f0',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -123,28 +123,29 @@ export const LoginPage: React.FC = () => {
       <Box
         sx={{
           position: 'absolute',
-          top: '-15%',
+          top: '-20%',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: '650px',
-          height: '650px',
+          width: '750px',
+          height: '750px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255, 210, 31, 0.05) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(255, 210, 31, 0.08) 0%, rgba(245, 158, 11, 0.02) 45%, transparent 70%)',
+          filter: 'blur(70px)',
           pointerEvents: 'none',
         }}
       />
 
-      {/* Grid overlay */}
+      {/* Modern subtle cyber dot overlay */}
       <Box
         sx={{
           position: 'absolute',
           inset: 0,
           backgroundImage: `
-            linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)
+            radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)
           `,
-          backgroundSize: '48px 48px',
+          backgroundSize: '32px 32px',
           pointerEvents: 'none',
+          opacity: 0.5,
         }}
       />
 
@@ -153,17 +154,17 @@ export const LoginPage: React.FC = () => {
         onClick={() => navigate('/')}
         sx={{
           position: 'absolute',
-          top: 24,
-          left: 24,
+          top: 28,
+          left: 28,
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          color: '#a3a3a3',
+          color: '#94a3b8',
           cursor: 'pointer',
           fontSize: '0.85rem',
           fontWeight: 600,
-          transition: 'color 0.2s',
-          '&:hover': { color: '#ffd21f' },
+          transition: 'all 0.2s',
+          '&:hover': { color: '#ffd21f', transform: 'translateX(-2px)' },
         }}
       >
         <ArrowBackIcon fontSize="small" />
@@ -174,35 +175,36 @@ export const LoginPage: React.FC = () => {
       <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 1 }}>
         <Card
           sx={{
-            background: '#111111',
-            border: '1px solid #262626',
-            borderRadius: '16px',
-            p: { xs: 3, sm: 4 },
-            boxShadow: '0 20px 60px rgba(0,0,0,0.8), 0 0 25px rgba(255, 210, 31, 0.05)',
+            background: 'rgba(18, 18, 24, 0.75)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            p: { xs: 3.5, sm: 4.5 },
+            boxShadow: '0 25px 80px rgba(0, 0, 0, 0.85), 0 0 35px rgba(255, 210, 31, 0.06)',
           }}
         >
           {/* Logo Header */}
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <Box sx={{ textAlign: 'center', mb: 3.5 }}>
             <Box
               sx={{
-                width: 44,
-                height: 44,
-                borderRadius: '10px',
-                background: '#161616',
-                border: '1px solid rgba(255, 210, 31, 0.4)',
+                width: 48,
+                height: 48,
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #181824 0%, #101016 100%)',
+                border: '1px solid rgba(255, 210, 31, 0.45)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 20px rgba(255, 210, 31, 0.15)',
+                boxShadow: '0 0 24px rgba(255, 210, 31, 0.25)',
                 mb: 2,
               }}
             >
-              <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 22 }} />
+              <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 24 }} />
             </Box>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', mb: 0.5 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: '#ffffff', letterSpacing: '-0.025em', mb: 0.6 }}>
               {isSignUp ? 'Create your account' : 'Welcome back'}
             </Typography>
-            <Typography sx={{ color: '#a3a3a3', fontSize: '0.85rem' }}>
+            <Typography sx={{ color: '#94a3b8', fontSize: '0.875rem' }}>
               {isSignUp ? 'Sign up to start analysing repos with AI' : 'Sign in to continue to RepoMind'}
             </Typography>
           </Box>
@@ -215,6 +217,10 @@ export const LoginPage: React.FC = () => {
                 display: 'flex',
                 justifyContent: 'center',
                 width: '100%',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
                 '& > div': { width: '100% !important', display: 'flex', justifyContent: 'center' },
               }}
             >
@@ -235,18 +241,18 @@ export const LoginPage: React.FC = () => {
               startIcon={<GitHubIcon sx={{ color: '#ffffff' }} />}
               onClick={handleGitHubRedirect}
               sx={{
-                height: 40,
-                borderRadius: '8px',
-                borderColor: '#262626',
+                height: 44,
+                borderRadius: '10px',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
                 color: '#ffffff',
                 textTransform: 'none',
                 fontWeight: 600,
-                fontSize: '0.85rem',
-                background: '#151515',
-                transition: 'all 0.15s ease',
+                fontSize: '0.875rem',
+                background: 'rgba(20, 20, 28, 0.6)',
+                transition: 'all 0.18s ease',
                 '&:hover': {
-                  background: '#1a1a1a',
-                  borderColor: '#333333',
+                  background: 'rgba(28, 28, 38, 0.9)',
+                  borderColor: 'rgba(255, 210, 31, 0.4)',
                   color: '#ffd21f',
                   '& .MuiButton-startIcon': { color: '#ffd21f' },
                 },
@@ -258,12 +264,13 @@ export const LoginPage: React.FC = () => {
 
           <Divider
             sx={{
-              borderColor: '#262626',
-              color: '#737373',
+              borderColor: 'rgba(255, 255, 255, 0.08)',
+              color: '#64748b',
               fontSize: '0.7rem',
-              my: 2.5,
+              my: 2.8,
               textTransform: 'uppercase',
               letterSpacing: '1px',
+              fontWeight: 700,
             }}
           >
             or continue with email
@@ -274,7 +281,7 @@ export const LoginPage: React.FC = () => {
             {isSignUp && (
               <Box sx={{ display: 'flex', gap: 1.5 }}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.78rem', color: '#a3a3a3', mb: 0.8, fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8', mb: 0.8, fontWeight: 600 }}>
                     First Name
                   </Typography>
                   <TextField
@@ -287,18 +294,18 @@ export const LoginPage: React.FC = () => {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: '#ffffff',
-                        background: '#0a0a0a',
-                        borderRadius: '8px',
-                        '& fieldset': { borderColor: '#262626' },
-                        '&:hover fieldset': { borderColor: '#333333' },
+                        background: 'rgba(10, 10, 14, 0.85)',
+                        borderRadius: '10px',
+                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
                         '&.Mui-focused fieldset': { borderColor: '#ffd21f' },
                       },
-                      '& input::placeholder': { color: '#737373', opacity: 1 },
+                      '& input::placeholder': { color: '#64748b', opacity: 1 },
                     }}
                   />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.78rem', color: '#a3a3a3', mb: 0.8, fontWeight: 500 }}>
+                  <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8', mb: 0.8, fontWeight: 600 }}>
                     Last Name
                   </Typography>
                   <TextField
@@ -311,13 +318,13 @@ export const LoginPage: React.FC = () => {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         color: '#ffffff',
-                        background: '#0a0a0a',
-                        borderRadius: '8px',
-                        '& fieldset': { borderColor: '#262626' },
-                        '&:hover fieldset': { borderColor: '#333333' },
+                        background: 'rgba(10, 10, 14, 0.85)',
+                        borderRadius: '10px',
+                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
                         '&.Mui-focused fieldset': { borderColor: '#ffd21f' },
                       },
-                      '& input::placeholder': { color: '#737373', opacity: 1 },
+                      '& input::placeholder': { color: '#64748b', opacity: 1 },
                     }}
                   />
                 </Box>
@@ -325,7 +332,7 @@ export const LoginPage: React.FC = () => {
             )}
 
             <Box>
-              <Typography sx={{ fontSize: '0.78rem', color: '#a3a3a3', mb: 0.8, fontWeight: 500 }}>
+              <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8', mb: 0.8, fontWeight: 600 }}>
                 Email address
               </Typography>
               <TextField
@@ -340,19 +347,19 @@ export const LoginPage: React.FC = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     color: '#ffffff',
-                    background: '#0a0a0a',
-                    borderRadius: '8px',
-                    '& fieldset': { borderColor: '#262626' },
-                    '&:hover fieldset': { borderColor: '#333333' },
+                    background: 'rgba(10, 10, 14, 0.85)',
+                    borderRadius: '10px',
+                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
                     '&.Mui-focused fieldset': { borderColor: '#ffd21f' },
                   },
-                  '& input::placeholder': { color: '#737373', opacity: 1 },
+                  '& input::placeholder': { color: '#64748b', opacity: 1 },
                 }}
               />
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: '0.78rem', color: '#a3a3a3', mb: 0.8, fontWeight: 500 }}>
+              <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8', mb: 0.8, fontWeight: 600 }}>
                 Password
               </Typography>
               <TextField
@@ -367,13 +374,13 @@ export const LoginPage: React.FC = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     color: '#ffffff',
-                    background: '#0a0a0a',
-                    borderRadius: '8px',
-                    '& fieldset': { borderColor: '#262626' },
-                    '&:hover fieldset': { borderColor: '#333333' },
+                    background: 'rgba(10, 10, 14, 0.85)',
+                    borderRadius: '10px',
+                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
                     '&.Mui-focused fieldset': { borderColor: '#ffd21f' },
                   },
-                  '& input::placeholder': { color: '#737373', opacity: 1 },
+                  '& input::placeholder': { color: '#64748b', opacity: 1 },
                 }}
               />
             </Box>
@@ -385,18 +392,18 @@ export const LoginPage: React.FC = () => {
               disabled={isLoading}
               endIcon={<ArrowForwardIcon />}
               sx={{
-                mt: 1,
-                height: 42,
-                borderRadius: '8px',
-                background: '#ffd21f',
-                color: '#050505',
-                fontWeight: 700,
+                mt: 1.2,
+                height: 44,
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #ffd21f 0%, #f59e0b 100%)',
+                color: '#050507',
+                fontWeight: 800,
                 textTransform: 'none',
-                fontSize: '0.9rem',
-                boxShadow: '0 2px 14px rgba(255, 210, 31, 0.3)',
+                fontSize: '0.925rem',
+                boxShadow: '0 4px 18px rgba(255, 210, 31, 0.3)',
                 '&:hover': {
-                  background: '#ffe033',
-                  boxShadow: '0 4px 20px rgba(255, 210, 31, 0.45)',
+                  background: 'linear-gradient(135deg, #ffe033 0%, #fbbf24 100%)',
+                  boxShadow: '0 6px 24px rgba(255, 210, 31, 0.45)',
                 },
                 '&:disabled': { opacity: 0.5 },
               }}
@@ -406,17 +413,17 @@ export const LoginPage: React.FC = () => {
           </Box>
 
           {/* Toggle Sign In / Sign Up */}
-          <Box sx={{ textAlign: 'center', mt: 3 }}>
-            <Typography sx={{ color: '#737373', fontSize: '0.825rem' }}>
+          <Box sx={{ textAlign: 'center', mt: 3.5 }}>
+            <Typography sx={{ color: '#64748b', fontSize: '0.85rem' }}>
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
               <Typography
                 component="span"
                 onClick={() => setIsSignUp(!isSignUp)}
                 sx={{
                   color: '#ffd21f',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  fontSize: '0.825rem',
+                  fontSize: '0.85rem',
                   '&:hover': { textDecoration: 'underline' },
                 }}
               >

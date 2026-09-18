@@ -88,9 +88,9 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: '#0a0a0a',
-        borderRight: '1px solid #262626',
-        color: '#e5e5e5',
+        background: '#09090d',
+        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+        color: '#e2e8f0',
       }}
     >
       {/* Brand Header */}
@@ -102,20 +102,20 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           alignItems: 'center',
           gap: 1.5,
           cursor: 'pointer',
-          borderBottom: '1px solid #1a1a1a',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         }}
       >
         <Box
           sx={{
-            width: 34,
-            height: 34,
-            borderRadius: '8px',
-            background: '#151515',
+            width: 36,
+            height: 36,
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #181824 0%, #101016 100%)',
             border: '1px solid rgba(255, 210, 31, 0.4)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 12px rgba(255, 210, 31, 0.15)',
+            boxShadow: '0 0 16px rgba(255, 210, 31, 0.18)',
           }}
         >
           <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 18 }} />
@@ -125,7 +125,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             variant="h6"
             sx={{
               fontWeight: 800,
-              fontSize: '1.15rem',
+              fontSize: '1.2rem',
               letterSpacing: '-0.02em',
               color: '#ffffff',
             }}
@@ -135,11 +135,11 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           <Box
             component="span"
             sx={{
-              width: 5,
-              height: 5,
+              width: 6,
+              height: 6,
               borderRadius: '50%',
               background: '#ffd21f',
-              boxShadow: '0 0 6px #ffd21f',
+              boxShadow: '0 0 8px #ffd21f',
               display: 'inline-block',
             }}
           />
@@ -152,7 +152,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           sx={{
             fontSize: '0.68rem',
             fontWeight: 700,
-            color: '#737373',
+            color: '#64748b',
             letterSpacing: '1.2px',
             textTransform: 'uppercase',
           }}
@@ -166,19 +166,19 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
         {NAV_ITEMS.map((item) => {
           const isActive = item.path && location.pathname === item.path;
           return (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.6 }}>
               <ListItemButton
                 disabled={item.soon}
                 onClick={() => item.path && navigate(item.path)}
                 sx={{
-                  borderRadius: '8px',
-                  py: 1,
-                  px: 1.75,
-                  background: isActive ? 'rgba(255, 210, 31, 0.08)' : 'transparent',
-                  border: isActive ? '1px solid rgba(255, 210, 31, 0.25)' : '1px solid transparent',
-                  transition: 'all 0.15s ease',
+                  borderRadius: '10px',
+                  py: 1.1,
+                  px: 1.8,
+                  background: isActive ? 'rgba(255, 210, 31, 0.1)' : 'transparent',
+                  border: isActive ? '1px solid rgba(255, 210, 31, 0.35)' : '1px solid transparent',
+                  transition: 'all 0.18s ease',
                   '&:hover': {
-                    background: isActive ? 'rgba(255, 210, 31, 0.12)' : '#151515',
+                    background: isActive ? 'rgba(255, 210, 31, 0.14)' : 'rgba(255, 255, 255, 0.05)',
                     '& .nav-icon': {
                       color: isActive ? '#ffd21f' : '#ffffff',
                     },
@@ -195,7 +195,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
                   className="nav-icon"
                   sx={{
                     minWidth: 32,
-                    color: isActive ? '#ffd21f' : '#737373',
+                    color: isActive ? '#ffd21f' : '#64748b',
                     transition: 'color 0.15s ease',
                   }}
                 >
@@ -208,8 +208,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
                     primary: {
                       sx: {
                         fontSize: '0.85rem',
-                        fontWeight: isActive ? 600 : 500,
-                        color: isActive ? '#ffffff' : '#a3a3a3',
+                        fontWeight: isActive ? 700 : 500,
+                        color: isActive ? '#ffffff' : '#94a3b8',
                         transition: 'color 0.15s ease',
                       },
                     },
@@ -223,9 +223,9 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
                       height: 18,
                       fontSize: '0.6rem',
                       fontWeight: 700,
-                      background: '#151515',
-                      color: '#737373',
-                      border: '1px solid #262626',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      color: '#64748b',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
                       borderRadius: '4px',
                       '& .MuiChip-label': { px: 0.7 },
                     }}
@@ -238,13 +238,13 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
       </List>
 
       {/* Footer info inside sidebar */}
-      <Box sx={{ p: 2, borderTop: '1px solid #1a1a1a' }}>
+      <Box sx={{ p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
         <Box
           sx={{
             p: 1.5,
-            borderRadius: '8px',
-            background: '#111111',
-            border: '1px solid #262626',
+            borderRadius: '10px',
+            background: 'rgba(18, 18, 24, 0.7)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
@@ -255,25 +255,26 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
               width: 8,
               height: 8,
               borderRadius: '50%',
-              background: '#ffd21f',
-              boxShadow: '0 0 8px rgba(255, 210, 31, 0.7)',
+              background: '#27c93f',
+              boxShadow: '0 0 8px #27c93f',
             }}
           />
-          <Typography sx={{ fontSize: '0.75rem', color: '#a3a3a3', fontWeight: 500 }}>
-            Active Engine
+          <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
+            Grounding Engine
           </Typography>
           <Chip
-            label="v1.0"
+            label="v3.5"
             size="small"
             sx={{
               ml: 'auto',
-              height: 16,
+              height: 18,
               fontSize: '0.625rem',
               color: '#ffd21f',
-              background: 'rgba(255, 210, 31, 0.1)',
-              border: '1px solid rgba(255, 210, 31, 0.25)',
-              borderRadius: '3px',
-              '& .MuiChip-label': { px: 0.5 },
+              background: 'rgba(255, 210, 31, 0.12)',
+              border: '1px solid rgba(255, 210, 31, 0.3)',
+              borderRadius: '4px',
+              fontWeight: 700,
+              '& .MuiChip-label': { px: 0.6 },
             }}
           />
         </Box>
@@ -282,7 +283,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', background: '#050505' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', background: '#050507' }}>
       {/* Top App Bar */}
       <Box
         sx={{
@@ -292,9 +293,10 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)`, xs: '100%' },
           height: 60,
           zIndex: 1100,
-          background: 'rgba(10, 10, 10, 0.85)',
+          background: 'rgba(9, 9, 13, 0.85)',
           backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid #262626',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -303,7 +305,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {isMobile && (
-            <IconButton onClick={handleDrawerToggle} sx={{ color: '#a3a3a3', '&:hover': { color: '#ffffff' } }}>
+            <IconButton onClick={handleDrawerToggle} sx={{ color: '#94a3b8', '&:hover': { color: '#ffffff' } }}>
               <MenuIcon fontSize="small" />
             </IconButton>
           )}
@@ -313,27 +315,27 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             sx={{
               display: { xs: 'none', sm: 'flex' },
               alignItems: 'center',
-              background: '#0f0f0f',
-              border: '1px solid #262626',
-              borderRadius: '8px',
-              px: 1.5,
+              background: 'rgba(16, 16, 22, 0.8)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '10px',
+              px: 1.8,
               py: 0.4,
               width: 280,
               transition: 'all 0.2s ease',
               '&:focus-within': {
                 border: '1px solid #ffd21f',
-                boxShadow: '0 0 12px rgba(255, 210, 31, 0.15)',
+                boxShadow: '0 0 14px rgba(255, 210, 31, 0.15)',
               },
             }}
           >
-            <SearchIcon sx={{ color: '#737373', fontSize: 18, mr: 1 }} />
+            <SearchIcon sx={{ color: '#64748b', fontSize: 18, mr: 1 }} />
             <InputBase
               placeholder="Quick search..."
               sx={{
                 color: '#ffffff',
                 fontSize: '0.825rem',
                 flex: 1,
-                '& input::placeholder': { color: '#737373', opacity: 1 },
+                '& input::placeholder': { color: '#64748b', opacity: 1 },
               }}
             />
             <Chip
@@ -342,9 +344,9 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
               sx={{
                 height: 18,
                 fontSize: '0.625rem',
-                color: '#737373',
-                background: '#1a1a1a',
-                border: '1px solid #262626',
+                color: '#64748b',
+                background: '#161622',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: '4px',
                 '& .MuiChip-label': { px: 0.6 },
               }}
@@ -356,13 +358,13 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton
             sx={{
-              color: '#a3a3a3',
-              background: '#111111',
-              border: '1px solid #262626',
+              color: '#94a3b8',
+              background: 'rgba(18, 18, 24, 0.7)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
               p: 0.8,
               borderRadius: '8px',
               transition: 'all 0.15s ease',
-              '&:hover': { color: '#ffffff', background: '#151515', borderColor: '#333333' },
+              '&:hover': { color: '#ffffff', background: '#1c1c28', borderColor: 'rgba(255, 255, 255, 0.15)' },
             }}
           >
             <NotificationsNoneIcon fontSize="small" />
@@ -378,11 +380,11 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
               p: 0.5,
               pr: 1.5,
               borderRadius: '20px',
-              background: '#111111',
-              border: '1px solid #262626',
+              background: 'rgba(18, 18, 24, 0.7)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
               transition: 'all 0.2s ease',
               '&:hover': {
-                background: '#151515',
+                background: '#181824',
                 borderColor: 'rgba(255, 210, 31, 0.4)',
               },
             }}
@@ -391,7 +393,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
               sx={{
                 width: 28,
                 height: 28,
-                background: '#1a1a1a',
+                background: '#181824',
                 color: '#ffd21f',
                 border: '1px solid rgba(255, 210, 31, 0.4)',
                 fontSize: '0.75rem',
@@ -412,12 +414,12 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             slotProps={{
               paper: {
                 sx: {
-                  background: '#111111',
-                  border: '1px solid #262626',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.8), 0 0 15px rgba(255, 210, 31, 0.05)',
-                  borderRadius: '10px',
+                  background: '#121218',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.85), 0 0 15px rgba(255, 210, 31, 0.05)',
+                  borderRadius: '12px',
                   mt: 1,
-                  minWidth: 180,
+                  minWidth: 190,
                 },
               },
             }}
@@ -426,11 +428,11 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
               <Typography sx={{ fontSize: '0.825rem', fontWeight: 600, color: '#ffffff' }}>
                 {user?.first_name} {user?.last_name}
               </Typography>
-              <Typography sx={{ fontSize: '0.72rem', color: '#737373' }}>
+              <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
                 {user?.email}
               </Typography>
             </Box>
-            <Divider sx={{ borderColor: '#262626' }} />
+            <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.07)' }} />
             <MenuItem
               onClick={handleLogout}
               sx={{
@@ -463,8 +465,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
-              background: '#0a0a0a',
-              borderRight: '1px solid #262626',
+              background: '#09090d',
+              borderRight: '1px solid rgba(255, 255, 255, 0.08)',
             },
           }}
         >
@@ -479,8 +481,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
-              background: '#0a0a0a',
-              borderRight: '1px solid #262626',
+              background: '#09090d',
+              borderRight: '1px solid rgba(255, 255, 255, 0.08)',
             },
           }}
           open
@@ -497,8 +499,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)`, xs: '100%' },
           minHeight: '100vh',
           pt: '60px',
-          background: '#050505',
-          backgroundImage: 'radial-gradient(ellipse at top left, rgba(255, 210, 31, 0.03) 0%, transparent 60%)',
+          background: '#050507',
+          backgroundImage: 'radial-gradient(ellipse at top left, rgba(255, 210, 31, 0.04) 0%, transparent 60%)',
         }}
       >
         {children}

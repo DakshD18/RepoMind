@@ -26,10 +26,11 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import HealthAndSafetyOutlinedIcon from '@mui/icons-material/HealthAndSafetyOutlined';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import CallSplitIcon from '@mui/icons-material/CallSplit';
+import toast from 'react-hot-toast';
+
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { getDashboardRepository, analyseRepository, indexRepository } from '../services/api';
 import type { Repository } from '../types';
-import toast from 'react-hot-toast';
 
 interface MetricCardProps {
   icon: React.ReactNode;
@@ -64,24 +65,29 @@ const LANG_COLORS: Record<string, string> = {
 const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, isStatus }) => (
   <Card
     sx={{
-      background: '#111111',
-      border: '1px solid #262626',
-      borderRadius: '14px',
-      p: 2.5,
+      background: 'rgba(18, 18, 24, 0.65)',
+      backdropFilter: 'blur(16px)',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      borderRadius: '16px',
+      p: 2.8,
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
       transition: 'all 0.2s ease',
       '&:hover': {
-        borderColor: 'rgba(255, 210, 31, 0.35)',
-        background: '#151515',
+        borderColor: 'rgba(255, 210, 31, 0.4)',
+        background: 'rgba(22, 22, 30, 0.85)',
+        transform: 'translateY(-2px)',
+        boxShadow: '0 8px 25px rgba(0,0,0,0.6)',
       },
     }}
   >
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: '#737373' }}>
-      <Box sx={{ display: 'flex', color: isStatus ? '#ffd21f' : '#ffd21f' }}>{icon}</Box>
-      <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#737373' }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2, color: '#94a3b8' }}>
+      <Box sx={{ display: 'flex', p: 0.5, borderRadius: '6px', background: 'rgba(255, 210, 31, 0.08)', color: '#ffd21f' }}>
+        {icon}
+      </Box>
+      <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#94a3b8' }}>
         {label}
       </Typography>
     </Box>
@@ -91,7 +97,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, isStatus })
         fontSize: isStatus ? '1.15rem' : '1.75rem',
         fontWeight: 800,
         color: isStatus ? '#ffd21f' : '#ffffff',
-        lineHeight: 1,
+        lineHeight: 1.1,
       }}
     >
       {value}
@@ -106,15 +112,15 @@ const formatLastCommit = (dateStr: string | null): string => {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 60) return `${diffSec} seconds ago`;
+  if (diffSec < 60) return `${diffSec}s ago`;
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+  if (diffMin < 60) return `${diffMin}m ago`;
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? 's' : ''} ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
   const diffDays = Math.floor(diffHr / 24);
-  if (diffDays < 30) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  if (diffDays < 30) return `${diffDays}d ago`;
   const diffMonths = Math.floor(diffDays / 30);
-  return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
+  return `${diffMonths}mo ago`;
 };
 
 export const RepositoryOverview: React.FC = () => {
@@ -205,7 +211,7 @@ export const RepositoryOverview: React.FC = () => {
             onClick={() => navigate('/dashboard')}
             startIcon={<ArrowBackIcon />}
             variant="outlined"
-            sx={{ color: '#ffd21f', borderColor: 'rgba(255,210,31,0.4)' }}
+            sx={{ color: '#ffd21f', borderColor: 'rgba(255,210,31,0.4)', borderRadius: '10px' }}
           >
             Back to Dashboard
           </Button>
@@ -225,11 +231,11 @@ export const RepositoryOverview: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
           <Typography
             onClick={() => navigate('/dashboard')}
-            sx={{ color: '#ffd21f', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+            sx={{ color: '#ffd21f', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
           >
-            RepoMind
+            Dashboard
           </Typography>
-          <Typography sx={{ color: '#737373', fontSize: '0.85rem' }}>/</Typography>
+          <Typography sx={{ color: '#64748b', fontSize: '0.85rem' }}>/</Typography>
           <Typography sx={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 600 }}>
             {repo.owner}/{repo.name}
           </Typography>
@@ -238,60 +244,62 @@ export const RepositoryOverview: React.FC = () => {
         {/* Main Repository Header Banner */}
         <Card
           sx={{
-            background: '#111111',
-            border: '1px solid #262626',
-            borderRadius: '16px',
-            p: { xs: 3, md: 3.5 },
-            mb: 3.5,
+            background: 'linear-gradient(135deg, rgba(20, 20, 28, 0.85) 0%, rgba(14, 14, 18, 0.95) 100%)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '18px',
+            p: { xs: 3, md: 4 },
+            mb: 4,
+            boxShadow: '0 16px 45px rgba(0,0,0,0.7)',
           }}
         >
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { md: 'flex-start' }, gap: 3 }}>
             <Box sx={{ flex: 1 }}>
               {/* Pills */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.8 }}>
                 <Chip
-                  icon={<GitHubIcon sx={{ fontSize: '13px !important', color: '#a3a3a3 !important' }} />}
+                  icon={<GitHubIcon sx={{ fontSize: '13px !important', color: '#94a3b8 !important' }} />}
                   label={repo.owner}
                   size="small"
-                  sx={{ background: '#161616', color: '#e5e5e5', border: '1px solid #262626', fontSize: '0.725rem' }}
+                  sx={{ background: 'rgba(255, 255, 255, 0.05)', color: '#e2e8f0', border: '1px solid rgba(255, 255, 255, 0.08)', fontSize: '0.725rem' }}
                 />
                 <Chip
                   label={repo.name}
                   size="small"
-                  sx={{ background: 'rgba(255, 210, 31, 0.1)', color: '#ffd21f', border: '1px solid rgba(255, 210, 31, 0.3)', fontWeight: 700, fontSize: '0.725rem' }}
+                  sx={{ background: 'rgba(255, 210, 31, 0.12)', color: '#ffd21f', border: '1px solid rgba(255, 210, 31, 0.35)', fontWeight: 700, fontSize: '0.725rem' }}
                 />
                 <Chip
                   label="Public"
                   size="small"
-                  sx={{ background: '#161616', color: '#737373', border: '1px solid #262626', fontSize: '0.7rem' }}
+                  sx={{ background: 'rgba(255, 255, 255, 0.04)', color: '#64748b', border: '1px solid rgba(255, 255, 255, 0.06)', fontSize: '0.7rem' }}
                 />
               </Box>
 
               {/* Title & Description */}
-              <Typography variant="h4" sx={{ fontWeight: 800, color: '#ffffff', mb: 1, letterSpacing: '-0.02em', fontSize: { xs: '1.5rem', sm: '1.8rem' } }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: '#ffffff', mb: 1, letterSpacing: '-0.025em', fontSize: { xs: '1.6rem', sm: '1.9rem' } }}>
                 {repo.description || `${repo.owner}/${repo.name}`}
               </Typography>
 
               {/* Sub Meta Info */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, flexWrap: 'wrap', mt: 2, color: '#a3a3a3', fontSize: '0.825rem' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <StarBorderIcon sx={{ fontSize: 15, color: '#737373' }} />
-                  <Typography sx={{ fontSize: '0.825rem' }}>{repo.file_count.toLocaleString()}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap', mt: 2.2, color: '#94a3b8', fontSize: '0.85rem' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+                  <StarBorderIcon sx={{ fontSize: 16, color: '#64748b' }} />
+                  <Typography sx={{ fontSize: '0.825rem' }}>{repo.file_count.toLocaleString()} files</Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <CallSplitIcon sx={{ fontSize: 15, color: '#737373' }} />
-                  <Typography sx={{ fontSize: '0.825rem' }}>{repo.branches.length}</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+                  <CallSplitIcon sx={{ fontSize: 16, color: '#64748b' }} />
+                  <Typography sx={{ fontSize: '0.825rem' }}>{repo.branches.length} branches</Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <AccountTreeIcon sx={{ fontSize: 15, color: '#737373' }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+                  <AccountTreeIcon sx={{ fontSize: 16, color: '#64748b' }} />
                   <Typography sx={{ fontSize: '0.825rem' }}>{repo.default_branch || 'main'}</Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                  <Box sx={{ width: 7, height: 7, borderRadius: '50%', background: primaryLangColor }} />
-                  <Typography sx={{ fontSize: '0.825rem', color: '#ffffff' }}>{primaryLang}</Typography>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: primaryLangColor }} />
+                  <Typography sx={{ fontSize: '0.825rem', color: '#ffffff', fontWeight: 600 }}>{primaryLang}</Typography>
                 </Box>
               </Box>
             </Box>
@@ -306,18 +314,18 @@ export const RepositoryOverview: React.FC = () => {
                 variant="outlined"
                 endIcon={<OpenInNewIcon sx={{ fontSize: 15 }} />}
                 sx={{
-                  height: 40,
-                  borderRadius: '8px',
-                  borderColor: '#262626',
-                  color: '#e5e5e5',
-                  background: '#151515',
+                  height: 44,
+                  borderRadius: '10px',
+                  borderColor: 'rgba(255, 255, 255, 0.12)',
+                  color: '#e2e8f0',
+                  background: 'rgba(20, 20, 28, 0.6)',
                   textTransform: 'none',
                   fontWeight: 600,
-                  fontSize: '0.825rem',
-                  px: 2,
+                  fontSize: '0.85rem',
+                  px: 2.2,
                   '&:hover': {
-                    borderColor: '#333333',
-                    background: '#1a1a1a',
+                    borderColor: 'rgba(255, 210, 31, 0.4)',
+                    background: 'rgba(24, 24, 34, 0.9)',
                     color: '#ffffff',
                   },
                 }}
@@ -329,8 +337,8 @@ export const RepositoryOverview: React.FC = () => {
                 variant="contained"
                 startIcon={
                   isIndexing
-                    ? <CircularProgress size={16} sx={{ color: '#050505' }} />
-                    : <ChatOutlinedIcon sx={{ fontSize: 17 }} />
+                    ? <CircularProgress size={16} sx={{ color: '#050507' }} />
+                    : <ChatOutlinedIcon sx={{ fontSize: 18 }} />
                 }
                 onClick={() => {
                   if (repo.is_indexed) {
@@ -341,27 +349,27 @@ export const RepositoryOverview: React.FC = () => {
                 }}
                 disabled={isIndexing}
                 sx={{
-                  height: 40,
-                  borderRadius: '8px',
-                  background: '#ffd21f',
-                  color: '#050505',
+                  height: 44,
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #ffd21f 0%, #f59e0b 100%)',
+                  color: '#050507',
                   textTransform: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  px: 2.5,
-                  boxShadow: '0 2px 14px rgba(255, 210, 31, 0.3)',
+                  fontWeight: 800,
+                  fontSize: '0.88rem',
+                  px: 2.8,
+                  boxShadow: '0 4px 18px rgba(255, 210, 31, 0.3)',
                   '&:hover': {
-                    background: '#ffe033',
-                    boxShadow: '0 4px 20px rgba(255, 210, 31, 0.45)',
+                    background: 'linear-gradient(135deg, #ffe033 0%, #fbbf24 100%)',
+                    boxShadow: '0 6px 24px rgba(255, 210, 31, 0.45)',
                   },
                   '&:disabled': {
                     background: 'rgba(255, 210, 31, 0.3)',
-                    color: '#050505',
+                    color: '#050507',
                   },
                 }}
               >
                 {repo.is_indexed
-                  ? 'Ask AI'
+                  ? 'Ask AI Intelligence'
                   : isIndexing
                     ? 'Indexing...'
                     : 'Index & Chat'}
@@ -416,31 +424,31 @@ export const RepositoryOverview: React.FC = () => {
 
         {/* Quick Actions Section */}
         <Box sx={{ mb: 4.5 }}>
-          <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', color: '#ffffff', mb: 2 }}>
-            Quick Actions
+          <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#ffffff', mb: 2 }}>
+            Intelligence Actions
           </Typography>
 
           <Grid container spacing={2.5}>
             {[
               {
                 title: 'Chat with Repository',
-                desc: 'Ask questions about code, architecture, or logic.',
+                desc: 'Ask questions about code, architecture, or logic with 100% grounded citations.',
                 icon: <ChatOutlinedIcon sx={{ color: '#ffd21f' }} />,
                 onClick: () => navigate(`/repository/${id}/chat`),
               },
               {
                 title: 'View Architecture',
-                desc: 'Interactive diagram of folders and dependencies.',
+                desc: 'Interactive diagram of folders and dependencies across the codebase.',
                 icon: <AccountTreeIcon sx={{ color: '#ffd21f' }} />,
               },
               {
                 title: 'Repository Health',
-                desc: 'Identify technical debt and code quality issues.',
+                desc: 'Identify technical debt, security issues, and maintainability metrics.',
                 icon: <HealthAndSafetyOutlinedIcon sx={{ color: '#ffd21f' }} />,
               },
               {
                 title: 'Reanalyse',
-                desc: 'Sync the latest commits and rebuild the index.',
+                desc: 'Sync latest GitHub commits and regenerate pgvector embeddings.',
                 icon: <RefreshIcon sx={{ color: '#ffd21f' }} />,
                 onClick: handleReanalyse,
               },
@@ -449,28 +457,29 @@ export const RepositoryOverview: React.FC = () => {
                 <Card
                   onClick={action.onClick}
                   sx={{
-                    background: '#111111',
-                    border: '1px solid #262626',
-                    borderRadius: '14px',
-                    p: 2.5,
+                    background: 'rgba(18, 18, 24, 0.65)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '16px',
+                    p: 3,
                     height: '100%',
                     cursor: action.onClick ? 'pointer' : 'default',
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      borderColor: 'rgba(255, 210, 31, 0.4)',
-                      background: '#151515',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 8px 25px rgba(0,0,0,0.6), 0 0 15px rgba(255, 210, 31, 0.08)',
+                      borderColor: 'rgba(255, 210, 31, 0.45)',
+                      background: 'rgba(22, 22, 30, 0.85)',
+                      transform: 'translateY(-3px)',
+                      boxShadow: '0 12px 30px rgba(0,0,0,0.7), 0 0 20px rgba(255, 210, 31, 0.08)',
                     },
                   }}
                 >
                   <Box
                     sx={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: '8px',
-                      background: '#161616',
-                      border: '1px solid #262626',
+                      width: 42,
+                      height: 42,
+                      borderRadius: '10px',
+                      background: '#12121a',
+                      border: '1px solid rgba(255, 210, 31, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -479,10 +488,10 @@ export const RepositoryOverview: React.FC = () => {
                   >
                     {action.icon}
                   </Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: '0.925rem', color: '#ffffff', mb: 0.5 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', color: '#ffffff', mb: 0.6 }}>
                     {action.title}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.78rem', color: '#737373', lineHeight: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.55 }}>
                     {action.desc}
                   </Typography>
                 </Card>
@@ -494,29 +503,28 @@ export const RepositoryOverview: React.FC = () => {
         {/* Recent Activity Section — real commit data from backend */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', color: '#ffffff' }}>
-              Recent Activity
-            </Typography>
-            <Typography sx={{ fontSize: '0.8rem', color: '#ffd21f', fontWeight: 600, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
-              View all
+            <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#ffffff' }}>
+              Indexed Repository Memory ({commits.length})
             </Typography>
           </Box>
 
           <Card
             sx={{
-              background: '#111111',
-              border: '1px solid #262626',
-              borderRadius: '14px',
+              background: 'rgba(18, 18, 24, 0.65)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '16px',
+              overflow: 'hidden',
             }}
           >
             {commits.length === 0 ? (
-              <Box sx={{ p: 4, textAlign: 'center' }}>
-                <CommitIcon sx={{ fontSize: 32, color: '#333333', mb: 1 }} />
-                <Typography sx={{ color: '#737373', fontSize: '0.875rem' }}>
+              <Box sx={{ p: 5, textAlign: 'center' }}>
+                <CommitIcon sx={{ fontSize: 36, color: '#64748b', mb: 1.5 }} />
+                <Typography sx={{ color: '#94a3b8', fontSize: '0.9rem', fontWeight: 600 }}>
                   No commit history available yet.
                 </Typography>
-                <Typography sx={{ color: '#555555', fontSize: '0.775rem', mt: 0.5 }}>
-                  Re-analyse the repository with a deeper clone to fetch commits.
+                <Typography sx={{ color: '#64748b', fontSize: '0.8rem', mt: 0.5 }}>
+                  Re-analyse the repository to fetch and index commit memory.
                 </Typography>
               </Box>
             ) : (
@@ -524,26 +532,26 @@ export const RepositoryOverview: React.FC = () => {
                 <Box key={`${commit.hash}-${idx}`}>
                   <Box
                     sx={{
-                      p: 2.25,
+                      p: 2.5,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: 2,
                       flexWrap: 'wrap',
                       transition: 'background 0.15s ease',
-                      '&:hover': { background: '#151515' },
+                      '&:hover': { background: 'rgba(255, 255, 255, 0.03)' },
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, flex: 1 }}>
                       <Avatar
                         sx={{
-                          width: 32,
-                          height: 32,
-                          fontSize: '0.72rem',
+                          width: 34,
+                          height: 34,
+                          fontSize: '0.75rem',
                           fontWeight: 700,
-                          background: '#1a1a1a',
+                          background: '#161622',
                           color: '#ffd21f',
-                          border: '1px solid rgba(255, 210, 31, 0.3)',
+                          border: '1px solid rgba(255, 210, 31, 0.35)',
                           flexShrink: 0,
                         }}
                       >
@@ -551,22 +559,22 @@ export const RepositoryOverview: React.FC = () => {
                       </Avatar>
                       <Box sx={{ minWidth: 0 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                          <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#ffffff' }}>
+                          <Typography sx={{ fontSize: '0.88rem', fontWeight: 700, color: '#ffffff' }}>
                             {commit.author}
                           </Typography>
-                          <Typography sx={{ fontSize: '0.78rem', color: '#737373' }}>
+                          <Typography sx={{ fontSize: '0.78rem', color: '#64748b' }}>
                             committed
                           </Typography>
                           <Typography
                             noWrap
-                            sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#e5e5e5', maxWidth: { xs: 200, sm: 400, md: 500 } }}
+                            sx={{ fontSize: '0.88rem', fontWeight: 500, color: '#e2e8f0', maxWidth: { xs: 200, sm: 400, md: 550 } }}
                           >
                             {commit.message}
                           </Typography>
                         </Box>
 
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.4 }}>
-                          <Typography sx={{ fontSize: '0.725rem', color: '#737373' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
                             🕒 {commit.time}
                           </Typography>
                           <Chip
@@ -574,10 +582,10 @@ export const RepositoryOverview: React.FC = () => {
                             size="small"
                             sx={{
                               height: 18,
-                              fontSize: '0.625rem',
-                              background: '#161616',
-                              color: '#737373',
-                              border: '1px solid #262626',
+                              fontSize: '0.65rem',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              color: '#94a3b8',
+                              border: '1px solid rgba(255, 255, 255, 0.06)',
                               borderRadius: '4px',
                             }}
                           />
@@ -585,11 +593,11 @@ export const RepositoryOverview: React.FC = () => {
                       </Box>
                     </Box>
 
-                    <Typography sx={{ fontFamily: 'monospace', fontSize: '0.725rem', color: '#737373', flexShrink: 0 }}>
+                    <Typography sx={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffd21f', background: 'rgba(255, 210, 31, 0.08)', px: 1, py: 0.3, borderRadius: '4px', border: '1px solid rgba(255, 210, 31, 0.25)', flexShrink: 0 }}>
                       {commit.hash}
                     </Typography>
                   </Box>
-                  {idx < commits.length - 1 && <Divider sx={{ borderColor: '#1c1c1c' }} />}
+                  {idx < commits.length - 1 && <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.06)' }} />}
                 </Box>
               ))
             )}
