@@ -29,12 +29,19 @@ def _strip_overlapping(chunks: list[dict]) -> list[dict]:
     result = []
     for fp, file_chunks in by_file.items():
         # Sort by start line
-        sorted_chunks = sorted(file_chunks, key=lambda x: (x['start_line'], -(x['end_line'])))
+        sorted_chunks = sorted(
+            file_chunks,
+            key=lambda x: (x.get('start_line', 0), -(x.get('end_line', 0)))
+        )
         kept = []
         for c in sorted_chunks:
+            c_start = c.get('start_line', 0)
+            c_end = c.get('end_line', 0)
             dominated = False
             for k in kept:
-                if k['start_line'] <= c['start_line'] and k['end_line'] >= c['end_line']:
+                k_start = k.get('start_line', 0)
+                k_end = k.get('end_line', 0)
+                if k_start <= c_start and k_end >= c_end and (k_start != 0 or k_end != 0):
                     # c is fully contained in k — skip
                     dominated = True
                     break
@@ -120,22 +127,43 @@ def build_context(repository_name: str, chunks: list[dict]) -> str:
         if len(content) > MAX_SOURCE_CHARS:
             content = content[:MAX_SOURCE_CHARS] + '\n... (truncated)'
 
-        block_parts = [f'SOURCE {source_idx}', f'File: {fp}']
+        # Phase 3: commit-type sources use a different format
+        if sym_type == 'commit':
+            commit_sha = chunk.get('commit_sha', sym)
+            author = chunk.get('author_name', 'Unknown')
+            date = chunk.get('committed_date', '')
+            if isinstance(date, str) and len(date) > 10:
+                date = date[:10]
 
-        if sym:
-            block_parts.append(f'Symbol: {sym}')
-        elif cls:
-            block_parts.append(f'Class: {cls}')
+            block_parts = [
+                f'SOURCE {source_idx}',
+                'Type: git_commit',
+                f'SHA: {commit_sha[:7]}',
+                f'Author: {author}',
+                f'Date: {date}',
+                '',
+                'COMMIT MESSAGE:',
+            ]
+            # Split content: first part is commit header (already formatted), rest is body
+            block_parts.append(content)
+            block_parts.append('')
+        else:
+            block_parts = [f'SOURCE {source_idx}', f'File: {fp}']
 
-        block_parts.append(f'Type: {sym_type}')
+            if sym:
+                block_parts.append(f'Symbol: {sym}')
+            elif cls:
+                block_parts.append(f'Class: {cls}')
 
-        if start and end:
-            block_parts.append(f'Lines: {start}-{end}')
+            block_parts.append(f'Type: {sym_type}')
 
-        block_parts.append('')
-        block_parts.append('CODE:')
-        block_parts.append(f'```\n{content}\n```')
-        block_parts.append('')
+            if start and end:
+                block_parts.append(f'Lines: {start}-{end}')
+
+            block_parts.append('')
+            block_parts.append('CODE:')
+            block_parts.append(f'```\n{content}\n```')
+            block_parts.append('')
 
         block = '\n'.join(block_parts)
 
@@ -156,8 +184,9 @@ def format_sources(chunks: list[dict]) -> list[dict]:
 
     Phase 2.1: includes class_name, final_score, semantic_score for richer source cards.
     """
-    return [
-        {
+    sources = []
+    for c in chunks:
+        source = {
             'file_path':        c['file_path'],
             'symbol_name':      c.get('symbol_name', ''),
             'class_name':       c.get('class_name', ''),
@@ -165,5 +194,10 @@ def format_sources(chunks: list[dict]) -> list[dict]:
             'start_line':       c.get('start_line', 0),
             'end_line':         c.get('end_line', 0),
         }
-        for c in chunks
-    ]
+        # Phase 3: include commit-specific fields
+        if c.get('symbol_type') == 'commit':
+            source['commit_sha'] = c.get('commit_sha', '')
+            source['author_name'] = c.get('author_name', '')
+            source['committed_date'] = c.get('committed_date', '')
+        sources.append(source)
+    return sources

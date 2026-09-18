@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'dashboard',
     'embeddings',
     'rag',
+    'memory',
 ]
 
 MIDDLEWARE = [

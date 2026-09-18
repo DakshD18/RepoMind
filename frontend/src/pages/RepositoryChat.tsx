@@ -23,6 +23,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CodeIcon from '@mui/icons-material/Code';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import HistoryIcon from '@mui/icons-material/History';
 
 import type { Repository, ChatSession, ChatMessage, SourceReference, ChatResponse } from '../types';
 import {
@@ -80,7 +81,55 @@ const markdownComponents = {
 
 // ─── Source Reference Card ────────────────────────────────────────────────
 
-const SourceCard = ({ source }: { source: SourceReference }) => {
+const SourceCard = ({ source, repository }: { source: SourceReference; repository?: Repository | null }) => {
+  // Phase 3: commit-style card
+  if (source.symbol_type === 'commit' && source.commit_sha) {
+    const shortSha = source.commit_sha.slice(0, 7);
+    const date = source.committed_date ? source.committed_date.slice(0, 10) : '';
+    const commitUrl = repository
+      ? `https://github.com/${repository.owner}/${repository.name}/commit/${source.commit_sha}`
+      : '';
+
+    return (
+      <Box
+        component={commitUrl ? 'a' : 'div'}
+        href={commitUrl || undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.75,
+          px: 1.25,
+          py: 0.5,
+          borderRadius: '6px',
+          background: '#151515',
+          border: '1px solid rgba(255, 210, 31, 0.3)',
+          cursor: commitUrl ? 'pointer' : 'default',
+          transition: 'all 0.15s ease',
+          textDecoration: 'none',
+          '&:hover': {
+            borderColor: '#ffd21f',
+            background: '#1a1a1a',
+            boxShadow: '0 0 10px rgba(255, 210, 31, 0.1)',
+          },
+        }}
+      >
+        <HistoryIcon sx={{ fontSize: 13, color: '#ffd21f' }} />
+        <Typography sx={{ fontSize: '0.72rem', color: '#e5e5e5', fontFamily: 'monospace' }}>
+          <span style={{ color: '#ffd21f', fontWeight: 700 }}>{shortSha}</span>
+          {source.author_name && (
+            <span style={{ color: '#a3a3a3', marginLeft: 6 }}>by {source.author_name}</span>
+          )}
+          {date && (
+            <span style={{ color: '#737373', marginLeft: 6 }}>{date}</span>
+          )}
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Default: code-file card (unchanged)
   const fileName = source.file_path.split('/').pop() || source.file_path;
   return (
     <Box
@@ -119,7 +168,7 @@ const SourceCard = ({ source }: { source: SourceReference }) => {
 
 // ─── Message Bubble ────────────────────────────────────────────────────────
 
-const MessageBubble = ({ message }: { message: ChatMessage }) => {
+const MessageBubble = ({ message, repository }: { message: ChatMessage; repository?: Repository | null }) => {
   const isUser = message.role === 'user';
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', mb: 3 }}>
@@ -189,7 +238,7 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
             VERIFIED SOURCE REFERENCES
           </Typography>
           {message.sources.map((src, idx) => (
-            <SourceCard key={idx} source={src} />
+            <SourceCard key={idx} source={src} repository={repository} />
           ))}
         </Box>
       )}
@@ -732,7 +781,7 @@ const RepositoryChat: React.FC = () => {
 
           {/* Messages */}
           {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+            <MessageBubble key={msg.id} message={msg} repository={repository} />
           ))}
 
           {loading && <LoadingMessage stage={loadingStage} />}

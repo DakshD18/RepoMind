@@ -164,6 +164,7 @@ class QueryType:
     IDENTIFIER     = 'identifier'      # "where is generate_token defined?"
     ROUTE          = 'route'           # "where is /api/auth/google/ handled?"
     FLOW           = 'flow'            # "explain the authentication flow"
+    HISTORY        = 'history'         # "why was X changed?", "who added Y?", "when was Z introduced?", "commit history"
     GENERAL        = 'general'         # Everything else
 
 
@@ -190,10 +191,20 @@ _IDENTIFIER_PHRASES = re.compile(
     re.IGNORECASE,
 )
 
+_HISTORY_PHRASES = re.compile(
+    r'\b(why was|why did|who added|who wrote|who changed|who created|who modified|who authored|'
+    r'when was|when did|commit|commits|git log|git history|history of|recent changes|'
+    r'change log|changelog|pull request|pr\b|evolution|refactored|blame)\b',
+    re.IGNORECASE,
+)
+
 
 def detect_query_type(query: str) -> str:
     """Heuristically classify the query type for weight adjustment."""
     q_lower = query.lower()
+
+    if _HISTORY_PHRASES.search(query):
+        return QueryType.HISTORY
 
     if _OVERVIEW_PHRASES.search(query) or ('about' in q_lower and ('repo' in q_lower or 'project' in q_lower)):
         return QueryType.OVERVIEW
@@ -411,6 +422,13 @@ def rerank(
             else:
                 overview_boost = 0.0
             final = max(final, sem_score * 0.70 + overview_boost)
+
+        # History query: prioritize git commit memories over code definitions
+        if query_type == QueryType.HISTORY:
+            if chunk.get('symbol_type') == 'commit':
+                final = max(final, min(1.0, sem_score * 0.50 + kw_score * 0.40 + 0.35))
+            else:
+                final = min(final, 0.75)
 
         final = min(final, 1.0)
 

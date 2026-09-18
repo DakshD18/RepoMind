@@ -57,6 +57,10 @@ export interface SourceReference {
   symbol_type: string;
   start_line: number;
   end_line: number;
+  // Phase 3 — commit sources
+  commit_sha?: string;
+  author_name?: string;
+  committed_date?: string;
 }
 
 export interface ChatMessage {

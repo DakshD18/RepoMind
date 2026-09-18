@@ -156,7 +156,15 @@ def index_repository(repository) -> None:
         if _is_postgres():
             _apply_pgvector_column(repository)
 
-        # 7. Mark success
+        # 7. Phase 3: Extract and embed commit history (non-blocking)
+        try:
+            from memory.services import index_commit_history
+            index_commit_history(repository)
+            logger.info('Commit history indexed for repo %d', repository.id)
+        except Exception as exc:
+            logger.warning('Commit history indexing failed for repo %d: %s (non-fatal)', repository.id, exc)
+
+        # 8. Mark success
         repository.is_indexed = True
         repository.index_status = 'indexed'
         repository.save(update_fields=['is_indexed', 'index_status', 'index_error'])
@@ -396,6 +404,167 @@ def _search_python_cosine(repository_id: int, query_vec: list[float], limit: int
     ]
 
 
+# ─── Commit Memory Search (Phase 3) ────────────────────────────────────────────
+
+def _search_pgvector_commits(repository_id: int, query_vec: list[float], limit: int) -> list[tuple[float, dict]]:
+    """
+    Database-side cosine distance search for commit memories using pgvector.
+    similarity = 1 - cosine_distance (using <=> operator).
+    """
+    vec_literal = '[' + ','.join(str(v) for v in query_vec) + ']'
+    sql = """
+        SELECT
+            id,
+            commit_sha,
+            author_name,
+            author_email,
+            committed_date,
+            message,
+            files_changed,
+            stats,
+            1 - (embedding_vec <=> %s::vector) AS similarity
+        FROM memory_commitmemory
+        WHERE repository_id = %s
+          AND embedding_vec IS NOT NULL
+          AND 1 - (embedding_vec <=> %s::vector) >= %s
+        ORDER BY embedding_vec <=> %s::vector
+        LIMIT %s
+    """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [vec_literal, repository_id, vec_literal, MIN_SIMILARITY, vec_literal, limit])
+            rows = cursor.fetchall()
+
+        results = []
+        for row in rows:
+            cm = {
+                'id': row[0],
+                'commit_sha': row[1],
+                'author_name': row[2],
+                'author_email': row[3],
+                'committed_date': row[4],
+                'message': row[5],
+                'files_changed': row[6],
+                'stats': row[7],
+            }
+            results.append((float(row[8]), cm))
+        return results
+    except Exception as exc:
+        logger.warning('pgvector commit search failed: %s — falling back to Python', exc)
+        return []
+
+
+def _search_commit_memory(
+    repository_id: int,
+    query_text: str,
+    query_vec: list[float],
+    limit: int = 5,
+) -> list[dict]:
+    """
+    Search CommitMemory records by vector similarity and keyword matching.
+    Uses PostgreSQL/pgvector when available, with fallback to Python-side similarity.
+    Returns results formatted as chunk-like dicts with symbol_type='commit'
+    so they flow through the existing reranker and context builder.
+    """
+    try:
+        from memory.models import CommitMemory
+    except ImportError:
+        return []
+
+    scored: list[tuple[float, dict]] = []
+
+    # 1. Try pgvector first if available
+    if _pgvector_available():
+        scored = _search_pgvector_commits(repository_id, query_vec, limit)
+
+    # 2. Fall back to Python cosine if pgvector not available or returned no scored results
+    if not scored:
+        commits = CommitMemory.objects.filter(
+            repository_id=repository_id,
+            embedding__isnull=False,
+        ).values(
+            'id', 'commit_sha', 'author_name', 'author_email',
+            'committed_date', 'message', 'files_changed', 'stats',
+            'embedding',
+        )
+
+        for cm in commits:
+            emb = cm.get('embedding')
+            if not emb:
+                continue
+            sim = cosine_similarity(query_vec, emb)
+            if sim >= MIN_SIMILARITY:
+                scored.append((sim, cm))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+    # Also do keyword matching on commit messages and file names
+    tokens = _extract_search_tokens(query_text)
+    keyword_ids = set()
+    if tokens:
+        kw_q = Q(repository_id=repository_id)
+        text_q = Q()
+        for token in tokens:
+            text_q |= Q(message__icontains=token)
+            text_q |= Q(author_name__icontains=token)
+        keyword_commits = CommitMemory.objects.filter(
+            kw_q & text_q
+        ).values(
+            'id', 'commit_sha', 'author_name', 'author_email',
+            'committed_date', 'message', 'files_changed', 'stats',
+            'embedding',
+        )[:limit]
+        keyword_ids = {cm['id'] for cm in keyword_commits}
+
+        # Add keyword matches not already in scored results
+        scored_ids = {cm['id'] for _, cm in scored}
+        for cm in keyword_commits:
+            if cm['id'] not in scored_ids:
+                scored.append((0.0, cm))
+
+    # Build chunk-like dicts for the top results
+    results = []
+    for sim, cm in scored[:limit]:
+        # Build content string from commit data
+        files_str = ''
+        if cm['files_changed']:
+            file_lines = []
+            for f in cm['files_changed'][:20]:
+                file_lines.append(
+                    f"- {f.get('filename', '')} ({f.get('status', 'modified')}: "
+                    f"+{f.get('additions', 0)} -{f.get('deletions', 0)})"
+                )
+            files_str = '\n'.join(file_lines)
+
+        committed_date_str = ''
+        if cm['committed_date']:
+            committed_date_str = cm['committed_date'].isoformat() if hasattr(cm['committed_date'], 'isoformat') else str(cm['committed_date'])
+
+        content = f"Commit {cm['commit_sha'][:7]} by {cm['author_name']}\n"
+        content += f"Date: {committed_date_str[:10]}\n\n"
+        content += f"{cm['message']}\n"
+        if files_str:
+            content += f"\nFiles Changed:\n{files_str}"
+
+        results.append({
+            'id': cm['id'],
+            'file_path': f"commit:{cm['commit_sha'][:7]}",
+            'symbol_name': cm['commit_sha'][:7],
+            'class_name': '',
+            'symbol_type': 'commit',
+            'start_line': 0,
+            'end_line': 0,
+            'content': content,
+            'similarity': float(sim),
+            # Phase 3 commit-specific fields
+            'commit_sha': cm['commit_sha'],
+            'author_name': cm['author_name'],
+            'committed_date': committed_date_str,
+        })
+
+    return results
+
+
 # ─── Hybrid Retrieval ──────────────────────────────────────────────────────────
 
 def search_code_hybrid(
@@ -405,10 +574,11 @@ def search_code_hybrid(
     top_k: int = RAG_CONTEXT_TOP_K,
 ) -> list[dict]:
     """
-    Two-stage hybrid retrieval:
+    Three-stage hybrid retrieval:
 
-    Stage 1A — Semantic vector search: retrieve n_candidates chunks.
-    Stage 1B — Keyword/identifier search: retrieve KEYWORD_CANDIDATES chunks.
+    Stage 1A — Semantic vector search: retrieve n_candidates code chunks.
+    Stage 1B — Keyword/identifier search: retrieve KEYWORD_CANDIDATES code chunks.
+    Stage 1C — Commit memory search: retrieve commit history matches (Phase 3).
 
     Merge + deduplicate by chunk id.
 
@@ -431,6 +601,9 @@ def search_code_hybrid(
     # Stage 1B: Keyword / identifier search
     keyword_results = _keyword_search(repository_id, query_text, KEYWORD_CANDIDATES)
 
+    # Stage 1C: Commit memory search (Phase 3)
+    commit_results = _search_commit_memory(repository_id, query_text, query_vec, limit=5)
+
     # Merge: semantic results take priority; keyword results fill in missing chunks
     seen_ids: set = set()
     merged: list[dict] = []
@@ -447,9 +620,16 @@ def search_code_hybrid(
             seen_ids.add(cid)
             merged.append(chunk)
 
+    # Add commit results with prefixed IDs to avoid collision with code chunk IDs
+    for chunk in commit_results:
+        cid = f"commit-{chunk.get('id')}"
+        if cid not in seen_ids:
+            seen_ids.add(cid)
+            merged.append(chunk)
+
     logger.debug(
-        'Hybrid retrieval: repo=%d  semantic=%d  keyword=%d  total=%d',
-        repository_id, len(semantic_results), len(keyword_results), len(merged),
+        'Hybrid retrieval: repo=%d  semantic=%d  keyword=%d  commits=%d  total=%d',
+        repository_id, len(semantic_results), len(keyword_results), len(commit_results), len(merged),
     )
     return merged
 

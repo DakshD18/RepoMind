@@ -71,6 +71,13 @@ STRICT RULES — YOU MUST FOLLOW ALL OF THESE:
    - Reference file paths in backticks: `backend/auth/views.py`.
    - Be concise. Developers need accurate answers, not long disclaimers.
 
+8. USE GIT HISTORY EVIDENCE.
+   When the retrieved context includes git_commit sources, use them to answer
+   questions about WHY code was introduced, WHO made changes, and WHEN things
+   happened. Cite commit SHAs and dates as evidence.
+   Do NOT fabricate commit messages, authors, or dates. Only use what is
+   provided in the git_commit source blocks.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 

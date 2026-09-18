@@ -4,11 +4,13 @@
 
 > **Connect any GitHub repository. Understand everything. Instantly.**
 
+RepoMind is an AI-powered repository intelligence platform that helps developers understand an entire GitHub repository — its code, architecture, history, dependencies, and evolution.
+
+Instead of spending hours searching through files, commits, and documentation, developers can simply ask the repository.
+
 ## 🚨 The Problem
 
-Understanding an unfamiliar codebase can take days or even weeks.
-
-Developers often have to jump between:
+Understanding an unfamiliar codebase can take days or even weeks. Developers often have to jump between:
 
 - 📁 Source files
 - 📚 Documentation
@@ -16,17 +18,15 @@ Developers often have to jump between:
 - 🐛 Issues
 - 👨‍💻 Other developers
 
-The knowledge exists, but it's **scattered across the repository**.
+The knowledge exists, but it's **scattered across the repository**. RepoMind brings this knowledge together and turns the repository into a **living, searchable intelligence layer**.
 
-RepoMind brings this knowledge together and turns the repository into a **living, searchable intelligence layer**.
+## ✨ Features
 
-## ✨ What RepoMind Does
-
-- 💬 **Repository Intelligence** — Ask questions about the entire codebase and get source-grounded answers.
-- 🧠 **Repository Memory** — Understand why changes were made by analyzing repository history.
-- 💥 **Impact Analysis** — Know what could be affected before changing code.
-- 📊 **Repository Health** — Understand code quality, maintainability, security, and technical debt.
-- ⚡ **Productivity Intelligence** — Generate release notes, changelogs, sprint summaries, and documentation.
+- 💬 **Repository Intelligence** — Chat with your entire codebase and get source-grounded answers.
+- 🧠 **Repository Memory** — Understand why changes were made by analyzing commits, PRs, and repository history.
+- 💥 **Impact Analysis** — Identify affected files and dependencies before making changes.
+- 📊 **Repository Health** — Get insights into code quality, maintainability, security, and technical debt.
+- ⚡ **Productivity Intelligence** — Generate release notes, changelogs, sprint summaries, and documentation from repository activity.
 
 ## 🛠️ Tech Stack
 
