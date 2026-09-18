@@ -189,6 +189,45 @@ class RAGGroundingTestSuite(TestCase):
             embedding_text='mask_tokens TOKEN_MASK_PATTERN logger logging redact Bearer',
         )
 
+        # 10. Main application logic entry point
+        self.chunk_main = CodeChunk.objects.create(
+            repository=self.repo,
+            file_path='backend/main.py',
+            symbol_name='create_app',
+            symbol_type='function',
+            start_line=1,
+            end_line=45,
+            content='def create_app():\n    app = FastAPI(title="GeoPlatform")\n    app.include_router(auth_router)\n    return app',
+            embedding=[0.05] * 384,
+            embedding_text='main application logic entry point create_app FastAPI router',
+        )
+
+        # 11. Stylesheet (noise for logic questions)
+        self.chunk_css = CodeChunk.objects.create(
+            repository=self.repo,
+            file_path='frontend/src/index.css',
+            symbol_name='root_styles',
+            symbol_type='block',
+            start_line=1,
+            end_line=30,
+            content=':root { --main-color: #3b82f6; --bg: #ffffff; }\nbody { margin: 0; font-family: Inter, sans-serif; }',
+            embedding=[0.02] * 384,
+            embedding_text='index.css root styles main-color body font-family',
+        )
+
+        # 12. Static UI script (noise for core logic questions)
+        self.chunk_asset_js = CodeChunk.objects.create(
+            repository=self.repo,
+            file_path='assets/js/main.js',
+            symbol_name='init_scroll',
+            symbol_type='function',
+            start_line=1,
+            end_line=25,
+            content='function init_scroll() {\n    window.addEventListener("scroll", () => console.log("scrolling"));\n}',
+            embedding=[0.02] * 384,
+            embedding_text='assets js main init_scroll eventListener window scrolling',
+        )
+
         # ── Commit Memories ───────────────────────────────────────────────────
         self.commit_auth = CommitMemory.objects.create(
             repository=self.repo,
@@ -570,4 +609,113 @@ class RAGGroundingTestSuite(TestCase):
         mock_gemini.assert_not_called()
         self.assertIn("Commit history has not been indexed", result['answer'])
         self.assertEqual(result['sources'], [])
+
+    # ── Test 24: Overview Retrieval Returns README and Manifests ──────────────
+    def test_overview_retrieval_returns_readme_and_manifests(self):
+        chunks = search_code(self.repo.id, "what is this repo about?", top_k=5)
+        self.assertGreater(len(chunks), 0)
+        file_paths = [c['file_path'] for c in chunks]
+        self.assertIn('README.md', file_paths)
+        self.assertIn('package.json', file_paths)
+
+    # ── Test 25: Authentication Implementation Retrieval ─────────────────────
+    def test_authentication_implementation_retrieval(self):
+        chunks = search_code(self.repo.id, "where is authentication implemented?", top_k=5)
+        self.assertGreater(len(chunks), 0)
+        top = chunks[0]
+        self.assertIn(top['file_path'], ('backend/auth/views.py', 'backend/auth/jwt_service.py'))
+        self.assertIn(top['symbol_name'], ('GoogleAuthView.post', 'JWTService.generate_token'))
+
+    # ── Test 26: Main Application Logic Outranks CSS and Generic Utilities ──
+    def test_main_application_logic_outranks_css_and_generic_utilities(self):
+        accepted, evaluated = search_code(self.repo.id, "where is the main logic code present?", top_k=5, return_all_evaluated=True)
+        self.assertGreater(len(accepted), 0)
+        accepted_paths = [c['file_path'] for c in accepted]
+        # backend/main.py must be present in accepted results
+        self.assertIn('backend/main.py', accepted_paths)
+        # frontend/src/index.css and assets/js/main.js must NOT be present in accepted results
+        self.assertNotIn('frontend/src/index.css', accepted_paths)
+        self.assertNotIn('assets/js/main.js', accepted_paths)
+
+    # ── Test 27: Feature Existence Questions — Presence ───────────────────────
+    def test_feature_existence_presence(self):
+        chunks = search_code(self.repo.id, "is authentication used in this repo?", top_k=5)
+        self.assertGreater(len(chunks), 0)
+        file_paths = [c['file_path'] for c in chunks]
+        # Must retrieve actual auth implementation code
+        self.assertTrue(any('auth' in p for p in file_paths))
+
+    # ── Test 28: Feature Existence Questions — Absence & Manifest Evidence ────
+    @patch('rag.services.call_gemini')
+    def test_feature_existence_absence_and_no_context_behavior(self, mock_gemini):
+        no_auth_repo = Repository.objects.create(
+            user=self.user,
+            url='https://github.com/clean/no-auth-project',
+            name='NoAuthProject',
+            owner='clean-team',
+            is_indexed=True,
+            status=Repository.Status.SUCCESS,
+        )
+        # Add manifest with no auth dependencies
+        CodeChunk.objects.create(
+            repository=no_auth_repo,
+            file_path='package.json',
+            symbol_name='dependencies',
+            symbol_type='module',
+            start_line=1,
+            end_line=15,
+            content='{\n  "name": "simple-calc",\n  "dependencies": {\n    "mathjs": "^11.0.0"\n  }\n}',
+            embedding=[0.02] * 384,
+            embedding_text='simple calc mathjs dependencies package.json',
+        )
+
+        # 1. Implementation question on repo with no auth must return 0 chunks and trigger no-context guard
+        result = handle_chat(
+            user=self.user,
+            repository_id=no_auth_repo.id,
+            message="where is authentication implemented?",
+        )
+        mock_gemini.assert_not_called()
+        self.assertIn("couldn't find enough relevant information", result['answer'])
+        self.assertEqual(result['sources'], [])
+
+    # ── Test 29: Repository Isolation for Code Chunks ─────────────────────────
+    def test_repository_isolation_for_code_chunks(self):
+        other_repo = Repository.objects.create(
+            user=self.user,
+            url='https://github.com/secret/isolated-repo',
+            name='IsolatedRepo',
+            owner='secret-team',
+            is_indexed=True,
+            status=Repository.Status.SUCCESS,
+        )
+        CodeChunk.objects.create(
+            repository=other_repo,
+            file_path='secret/isolated_auth.py',
+            symbol_name='SecretAuthManager',
+            symbol_type='class',
+            start_line=1,
+            end_line=30,
+            content='class SecretAuthManager:\n    def authenticate(self): pass',
+            embedding=[0.05] * 384,
+            embedding_text='SecretAuthManager secret isolated authenticate auth',
+        )
+
+        chunks = search_code(self.repo.id, "where is authentication implemented?", top_k=10)
+        retrieved_paths = [c['file_path'] for c in chunks]
+        self.assertNotIn('secret/isolated_auth.py', retrieved_paths)
+
+    # ── Test 30: Prevention of Irrelevant Utility Files Outranking Code ────────
+    def test_prevention_of_irrelevant_utilities_outranking_code(self):
+        accepted, evaluated = search_code(self.repo.id, "where is authentication implemented?", top_k=5, return_all_evaluated=True)
+        self.assertGreater(len(accepted), 0)
+        accepted_paths = [c['file_path'] for c in accepted]
+
+        # Passive utilities (scripts/spatial_enrich.py, backend/utils/logger.py, frontend/src/index.css, assets/js/main.js)
+        # must NOT outrank real auth implementations
+        self.assertNotIn('scripts/spatial_enrich.py', accepted_paths)
+        self.assertNotIn('backend/utils/logger.py', accepted_paths)
+        self.assertNotIn('frontend/src/index.css', accepted_paths)
+        self.assertNotIn('assets/js/main.js', accepted_paths)
+        self.assertIn('backend/auth/views.py', accepted_paths)
 

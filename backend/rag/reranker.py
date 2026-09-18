@@ -389,7 +389,8 @@ def detect_query_type(query: str) -> str:
 def _is_passive_utility(file_path: str, symbol_name: str) -> bool:
     """
     Check if chunk is a logger, sanitization regex, test mock, fixture,
-    lookup dictionary, spatial enricher, vendor library, font/asset, or data mapper.
+    lookup dictionary, spatial enricher, vendor library, font/asset, stylesheet,
+    agent skill doc, audit script, or static template asset.
     """
     fp = file_path.lower()
     sym = symbol_name.lower()
@@ -403,14 +404,35 @@ def _is_passive_utility(file_path: str, symbol_name: str) -> bool:
     if fp.endswith(('.ctg.z', '.z', '.otf', '.ttf', '.woff', '.woff2', '.eot', '.icc', '.ai', '.fdf')):
         return True
 
+    # Stylesheets & styling assets (never application logic)
+    if fp.endswith(('.css', '.scss', '.less', '.sass', '.map')):
+        return True
+
+    # Prompt engineering, skill creators, agent specs (not implementation code)
+    if any(k in fp for k in ['skill-creator/', '.agents/', 'frontend-design/', 'prompts/']):
+        return True
+
     # Logging, tests, mocks, fixtures
     if any(k in fp for k in ['logger', 'logging', 'test', 'fixture', 'mock', 'spec', 'demo-response/src/utils', 'tests/']):
         return True
     if any(k in sym for k in ['pattern', 'regex', 'mask', 'redact', 'log_level', 'test_']):
         return True
 
+    # Audit, forensic, benchmark scripts
+    if any(k in fp for k in ['audit', 'forensic', 'benchmark', 'migration_', 'migrate_']):
+        return True
+
     # Data lookups, spatial enrichments, classification tables, seeds
     if any(k in fp for k in ['_lookup', '_enrich', 'classify', 'lookup.', 'lookups/', 'seed', 'dataset', 'fixtures']):
+        return True
+
+    # Static template assets (e.g. assets/js/main.js) when not backend or api
+    if ('assets/' in fp or fp.startswith('assets/')) and not any(k in fp for k in ['backend', 'api', 'services', 'src/']):
+        return True
+
+    # Config example templates (not implementation code)
+    fn = fp.rsplit('/', 1)[-1]
+    if fn.startswith('.env') or fn.endswith(('.env', '.env.example', '.env.sample', '.env.local', '.env.test')):
         return True
 
     return False
@@ -533,20 +555,47 @@ def _score_intent(chunk: dict, query_type: str, core_entities: set[str]) -> floa
 
     if query_type == QueryType.OVERVIEW:
         fn = fp.rsplit('/', 1)[-1]
-        if fn in ('readme.md', 'agents.md', 'architecture.md', 'package.json', 'pyproject.toml') or fn.startswith('readme'):
+        if fn in ('readme.md', 'agents.md', 'architecture.md', 'package.json', 'pyproject.toml', 'requirements.txt', 'pom.xml', 'cargo.toml', 'composer.json') or fn.startswith('readme'):
             return 0.50
         if fn in ('app.tsx', 'app.jsx', 'app.js', 'main.py', 'server.js', 'index.ts', 'manage.py', 'index.js', 'index.php', 'admin-panel.php', 'admin-panel1.php'):
             return 0.35
+        if _is_passive_utility(fp, chunk.get('symbol_name', '')):
+            return -0.30
         return -0.10
 
     if query_type == QueryType.ARCHITECTURE:
         fn = fp.rsplit('/', 1)[-1]
-        if fn.startswith(('index.', 'func', 'admin', 'doctor', 'patient', 'server.', 'app.', 'main.')) or any(k in fp for k in ['api', 'client', 'service', 'urls', 'routes', 'controllers', 'views']):
+        if fp.endswith(('.css', '.scss', '.less', '.sass')):
+            return -0.40
+        if ('assets/' in fp or fp.startswith('assets/')) and not any(k in fp for k in ['backend', 'api', 'services', 'src/']):
+            return -0.35
+        if _is_passive_utility(fp, chunk.get('symbol_name', '')):
+            return -0.30
+        if fn in ('main.py', 'server.js', 'app.py', 'app.jsx', 'app.tsx', 'app.js', 'index.php', 'manage.py', 'urls.py', 'admin-panel.php', 'admin-panel1.php'):
+            return 0.45
+        if any(k in fp for k in ['controllers/', 'routes/', 'views/', 'services/', 'api/', '/controllers', '/routes', '/services']):
+            if fp.endswith(('.py', '.js', '.jsx', '.ts', '.tsx', '.php', '.go', '.java')):
+                return 0.40
+        if (fn.startswith(('server.', 'app.', 'main.')) or fn in ('index.js', 'index.ts')) and fp.endswith(('.py', '.js', '.ts', '.php', '.go')):
             return 0.35
         return 0.0
 
+    if query_type == QueryType.IMPLEMENTATION:
+        fn = fp.rsplit('/', 1)[-1]
+        if fp.endswith(('.css', '.scss', '.less', '.sass')):
+            return -0.40
+        if _is_passive_utility(fp, chunk.get('symbol_name', '')):
+            return -0.30
+        chunk_tokens = _tokenize(chunk.get('content', '')) | _tokenize(fp) | _tokenize(chunk.get('symbol_name', ''))
+        expanded_entities = expand_concept_synonyms(core_entities) if core_entities else set()
+        if expanded_entities and (expanded_entities & chunk_tokens):
+            return 0.45
+        if fn in ('package.json', 'pyproject.toml', 'requirements.txt', 'pom.xml', 'composer.json'):
+            return 0.25
+        return 0.0
+
     if query_type == QueryType.DEPENDENCY:
-        if any(k in fp for k in ['package.json', 'pyproject.toml', 'requirements', 'cargo.toml', 'pom.xml']):
+        if any(k in fp for k in ['package.json', 'pyproject.toml', 'requirements', 'cargo.toml', 'pom.xml', 'composer.json']):
             return 0.40
         return 0.0
 
@@ -575,6 +624,7 @@ def evaluate_relevance(
     path_score: float,
     intent_score: float,
     final_score: float,
+    query: str = '',
 ) -> tuple[bool, Optional[str]]:
     """
     Perform an absolute relevance evaluation on a candidate chunk.
@@ -582,15 +632,23 @@ def evaluate_relevance(
     absolute evidence criteria to be sent to Gemini.
     """
     fp = chunk.get('file_path', '').lower()
+    fn = fp.rsplit('/', 1)[-1]
     sym_type = chunk.get('symbol_type', '')
     is_passive = _is_passive_utility(fp, chunk.get('symbol_name', ''))
 
-    # 1. Passive utility / vendor filter: when searching for implementations/features,
-    # penalize passive lookup / logger / vendor files unless there is an exact identifier match
+    # 1. Passive utility / vendor filter:
     if is_passive:
         if not any(k in fp for k in ['readme']):
+            if query_type in (QueryType.ARCHITECTURE, QueryType.OVERVIEW):
+                return False, 'passive utility or non-code asset in architecture/overview query'
+            if query_type == QueryType.IMPLEMENTATION and (fn.startswith('.env') or fn.endswith(('.example', '.sample', '.local', '.test'))):
+                return False, 'config template/sample not feature implementation'
             if ident_score < 0.85 and kw_score < 0.40:
                 return False, 'passive utility, vendor library, or data lookup'
+
+    # Reject stylesheets from logic queries
+    if fp.endswith(('.css', '.scss', '.less', '.sass', '.map')):
+        return False, 'stylesheet not relevant to application logic'
 
     # 2. History queries: commit evidence rules
     if query_type == QueryType.HISTORY:
@@ -623,16 +681,29 @@ def evaluate_relevance(
 
     # 3. Overview queries: README and root manifests ALWAYS pass
     if query_type == QueryType.OVERVIEW:
-        fn = fp.rsplit('/', 1)[-1]
-        if fn in ('readme.md', 'agents.md', 'architecture.md', 'package.json', 'pyproject.toml') or fn.startswith('readme'):
+        if fn in ('readme.md', 'agents.md', 'architecture.md', 'package.json', 'pyproject.toml', 'requirements.txt', 'pom.xml', 'cargo.toml', 'composer.json') or fn.startswith('readme'):
             return True, None
-        if fn.startswith('index.') or fn in ('main.py', 'app.tsx', 'app.js', 'server.js', 'admin-panel.php', 'admin-panel1.php'):
+        if fn in ('main.py', 'app.tsx', 'app.jsx', 'app.js', 'server.js', 'index.php', 'admin-panel.php', 'admin-panel1.php'):
+            return True, None
+        if fn.startswith('index.') and fn.endswith(('.js', '.ts', '.php', '.py')):
             return True, None
         if sem_score >= 0.30:
             return True, None
         return False, 'non-overview file with low semantic similarity'
 
-    # 4. Identifier queries: require identifier match or path match or strong keyword overlap
+    # 4. Architecture queries: core entry points and routers/services PASS
+    if query_type == QueryType.ARCHITECTURE:
+        if ('assets/' in fp or fp.startswith('assets/')) and not any(k in fp for k in ['backend', 'api', 'services', 'src/']):
+            return False, 'static template asset not application core logic'
+        if fn in ('main.py', 'server.js', 'app.py', 'app.jsx', 'app.tsx', 'app.js', 'index.php', 'manage.py', 'urls.py', 'admin-panel.php', 'admin-panel1.php'):
+            return True, None
+        if any(k in fp for k in ['controllers/', 'routes/', 'views/', 'services/', 'api/', '/controllers', '/routes', '/services']):
+            if fp.endswith(('.py', '.js', '.jsx', '.ts', '.tsx', '.php', '.go', '.java')):
+                return True, None
+        if (fn.startswith(('server.', 'app.', 'main.')) or fn in ('index.js', 'index.ts')) and fp.endswith(('.py', '.js', '.ts', '.php', '.go')):
+            return True, None
+
+    # 5. Identifier queries: require identifier match or path match or strong keyword overlap
     if query_type == QueryType.IDENTIFIER:
         if ident_score >= 0.60 or path_score >= 0.50:
             return True, None
@@ -640,8 +711,14 @@ def evaluate_relevance(
             return True, None
         return False, 'identifier query with weak identifier and path signals'
 
-    # 5. Entity overlap check for implementation / API / general queries
+    # 6. Entity overlap check for implementation / API / general queries
     if core_entities:
+        is_feature_query = (query_type == QueryType.IMPLEMENTATION and (
+            bool(_FEATURE_USAGE_PHRASES.search(query)) or any(w in query.lower() for w in ('used', 'use', 'exist', 'support'))
+        ))
+        if is_feature_query and fn in ('package.json', 'pyproject.toml', 'requirements.txt', 'pom.xml', 'cargo.toml', 'composer.json'):
+            return True, None
+
         expanded_entities = expand_concept_synonyms(core_entities)
         chunk_tokens = _tokenize(chunk.get('content', '')) | _tokenize(chunk.get('symbol_name', '')) | _tokenize(fp)
         has_entity_overlap = bool(expanded_entities & chunk_tokens)
@@ -650,7 +727,7 @@ def evaluate_relevance(
             if sem_score < 0.50 and ident_score < 0.60 and path_score < 0.60:
                 return False, 'no core entity overlap and semantic score below threshold'
 
-    # 6. Overall absolute score threshold check
+    # 7. Overall absolute score threshold check
     if final_score < RELEVANCE_GATE_THRESHOLD:
         return False, f'final score {final_score:.4f} below absolute threshold {RELEVANCE_GATE_THRESHOLD:.2f}'
 
@@ -728,22 +805,27 @@ def rerank(
 
         # Passive utility penalty when searching for features
         if _is_passive_utility(chunk.get('file_path', ''), chunk.get('symbol_name', '')):
-            if query_type in (QueryType.IMPLEMENTATION, QueryType.IDENTIFIER, QueryType.API):
+            if query_type in (QueryType.IMPLEMENTATION, QueryType.IDENTIFIER, QueryType.API, QueryType.ARCHITECTURE):
                 final = max(0.0, final - 0.25)
 
         # Overview query boost
         if query_type == QueryType.OVERVIEW:
             fn = chunk.get('file_path', '').rsplit('/', 1)[-1].lower()
-            if fn in ('readme.md', 'agents.md', 'architecture.md', 'package.json', 'pyproject.toml') or fn.startswith('readme'):
+            if fn in ('readme.md', 'agents.md', 'architecture.md', 'package.json', 'pyproject.toml', 'requirements.txt', 'pom.xml', 'cargo.toml', 'composer.json') or fn.startswith('readme'):
                 final = max(final, 0.65 + sem_score * 0.30)
-            elif fn.startswith('index.') or fn in ('main.py', 'app.tsx', 'app.js', 'server.js', 'admin-panel.php', 'admin-panel1.php'):
+            elif fn in ('main.py', 'app.tsx', 'app.jsx', 'app.js', 'server.js', 'index.php', 'admin-panel.php', 'admin-panel1.php') or (fn.startswith('index.') and fn.endswith(('.js', '.ts', '.php', '.py'))):
                 final = max(final, 0.50 + sem_score * 0.30)
 
         # Core logic / architecture boost
         if query_type == QueryType.ARCHITECTURE:
             fn = chunk.get('file_path', '').rsplit('/', 1)[-1].lower()
-            if fn.startswith(('index.', 'func', 'admin', 'doctor', 'patient', 'server.', 'app.', 'main.')) or any(k in chunk.get('file_path', '').lower() for k in ['service', 'controller', 'views']):
-                final = max(final, 0.45 + sem_score * 0.35)
+            fp_lower = chunk.get('file_path', '').lower()
+            is_static_asset = ('assets/' in fp_lower or fp_lower.startswith('assets/')) and not any(k in fp_lower for k in ['backend', 'api', 'services', 'src/'])
+            if not fp_lower.endswith(('.css', '.scss', '.less', '.sass')) and not is_static_asset:
+                if fn in ('main.py', 'server.js', 'app.py', 'app.jsx', 'app.tsx', 'app.js', 'index.php', 'manage.py', 'urls.py', 'admin-panel.php', 'admin-panel1.php') or any(k in fp_lower for k in ['controllers/', 'routes/', 'views/', 'services/', 'api/', '/controllers', '/routes', '/services']):
+                    final = max(final, 0.45 + sem_score * 0.35)
+                elif (fn.startswith(('server.', 'app.', 'main.')) or fn in ('index.js', 'index.ts')) and fp_lower.endswith(('.py', '.js', '.ts', '.php', '.go')):
+                    final = max(final, 0.40 + sem_score * 0.30)
 
         # History query prioritization
         if query_type == QueryType.HISTORY:
@@ -768,6 +850,7 @@ def rerank(
             path_score=path_score,
             intent_score=intent_sc,
             final_score=final,
+            query=query,
         )
 
         enriched = dict(chunk)

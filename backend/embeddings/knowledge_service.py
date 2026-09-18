@@ -242,10 +242,13 @@ def _keyword_search(repository_id: int, query: str, limit: int) -> list[dict]:
     Retrieve chunks via exact/partial text matching on symbol_name, class_name,
     file_path, and content. Strictly scoped by repository_id.
 
-    Returns chunk dicts with similarity=-1 (no vector score; will be set by reranker).
+    Returns chunk dicts with similarity=0.0 (will be evaluated by reranker).
     """
+    from rag.reranker import detect_query_type, QueryType
     tokens = _extract_search_tokens(query)
-    if not tokens:
+    is_overview = (detect_query_type(query) == QueryType.OVERVIEW)
+
+    if not tokens and not is_overview:
         return []
 
     # Build OR query across relevant fields
@@ -256,15 +259,24 @@ def _keyword_search(repository_id: int, query: str, limit: int) -> list[dict]:
         text_q |= Q(class_name__icontains=token)
         text_q |= Q(file_path__icontains=token)
 
+    # For small sets of meaningful query tokens, also match content
+    raw_query_words = [
+        w for w in re.findall(r'[a-zA-Z_][a-zA-Z0-9_]{2,}', query.lower())
+        if w not in {'where', 'what', 'which', 'how', 'when', 'why', 'does', 'this', 'that', 'with', 'from', 'into', 'is', 'the', 'in', 'used', 'repo', 'project'}
+    ]
+    if raw_query_words and len(raw_query_words) <= 3:
+        for rw in raw_query_words:
+            text_q |= Q(content__icontains=rw)
+
     # For overview queries, also ensure root documentation and manifest files are in candidate pool
-    from rag.reranker import detect_query_type, QueryType
-    if detect_query_type(query) == QueryType.OVERVIEW:
+    if is_overview:
         doc_q = (
             Q(file_path__iexact='readme.md') |
             Q(file_path__icontains='readme') |
             Q(file_path__iexact='agents.md') |
             Q(file_path__iexact='package.json') |
             Q(file_path__iexact='pyproject.toml') |
+            Q(file_path__iexact='requirements.txt') |
             Q(file_path__icontains='app.tsx') |
             Q(file_path__icontains='main.py') |
             Q(file_path__icontains='index.php') |
@@ -292,10 +304,141 @@ def _keyword_search(repository_id: int, query: str, limit: int) -> list[dict]:
             'start_line': row['start_line'],
             'end_line': row['end_line'],
             'content': row['content'],
-            'similarity': 0.0,   # Will be overridden if also in semantic results
+            'similarity': 0.0,
             'from_keyword': True,
         })
 
+    return results
+
+
+def _search_structural_candidates(repository_id: int, query: str, limit: int = 20) -> list[dict]:
+    """
+    Stage 1D — Deterministic Structural Candidate Injection:
+    Guarantees that repository documentation, project manifests, and primary entry points
+    reach the reranker for queries where standard semantic vector search or exact keyword
+    matching might miss them.
+
+    Query Types handled:
+    - OVERVIEW: READMEs, package manifests, and root entry points.
+    - ARCHITECTURE / MAIN LOGIC: Root entry points, controllers, routes, views, services
+      (while excluding stylesheets and static non-code assets).
+    - IMPLEMENTATION: Key domain modules (e.g. auth, api, db) and manifests for feature presence/absence.
+    """
+    from rag.reranker import (
+        detect_query_type,
+        QueryType,
+        expand_concept_synonyms,
+        extract_query_tokens,
+        _FEATURE_USAGE_PHRASES,
+    )
+
+    q_type = detect_query_type(query)
+    base_filter = Q(repository_id=repository_id)
+    struct_q = Q()
+    results = []
+
+    if q_type == QueryType.OVERVIEW:
+        struct_q = (
+            Q(file_path__icontains='readme') |
+            Q(file_path__iendswith='agents.md') |
+            Q(file_path__iendswith='architecture.md') |
+            Q(file_path__iendswith='package.json') |
+            Q(file_path__iendswith='pyproject.toml') |
+            Q(file_path__iendswith='requirements.txt') |
+            Q(file_path__iendswith='pom.xml') |
+            Q(file_path__iendswith='cargo.toml') |
+            Q(file_path__iendswith='composer.json') |
+            Q(file_path__icontains='app.tsx') |
+            Q(file_path__icontains='app.jsx') |
+            Q(file_path__icontains='app.js') |
+            Q(file_path__icontains='main.py') |
+            Q(file_path__icontains='server.js') |
+            Q(file_path__icontains='index.php') |
+            Q(file_path__icontains='manage.py')
+        )
+    elif q_type == QueryType.ARCHITECTURE:
+        struct_q = (
+            Q(file_path__icontains='main.py') |
+            Q(file_path__icontains='server.js') |
+            Q(file_path__icontains='app.py') |
+            Q(file_path__icontains='app.jsx') |
+            Q(file_path__icontains='app.tsx') |
+            Q(file_path__icontains='index.php') |
+            Q(file_path__icontains='manage.py') |
+            Q(file_path__icontains='urls.py') |
+            Q(file_path__icontains='routes') |
+            Q(file_path__icontains='controllers') |
+            Q(file_path__icontains='services') |
+            Q(file_path__icontains='api/') |
+            Q(file_path__icontains='admin-panel')
+        )
+    elif q_type == QueryType.IMPLEMENTATION:
+        from rag.reranker import extract_core_entities
+        entities = extract_core_entities(query)
+        syns = expand_concept_synonyms(entities) if entities else set()
+        for s in syns:
+            if len(s) >= 3:
+                struct_q |= Q(file_path__icontains=s)
+                struct_q |= Q(symbol_name__icontains=s)
+
+        # Manifest injection for feature queries
+        if _FEATURE_USAGE_PHRASES.search(query) or any(w in query.lower() for w in ('used', 'use', 'exist', 'support')):
+            manifest_q = (
+                Q(file_path__iendswith='package.json') |
+                Q(file_path__iendswith='pyproject.toml') |
+                Q(file_path__iendswith='requirements.txt') |
+                Q(file_path__iendswith='pom.xml') |
+                Q(file_path__iendswith='composer.json')
+            )
+            manifest_qs = (
+                CodeChunk.objects
+                .filter(base_filter & manifest_q)
+                .values('id', 'file_path', 'symbol_name', 'class_name',
+                        'symbol_type', 'start_line', 'end_line', 'content')[:5]
+            )
+            for row in manifest_qs:
+                results.append({
+                    'id': row['id'],
+                    'file_path': row['file_path'],
+                    'symbol_name': row['symbol_name'],
+                    'class_name': row['class_name'],
+                    'symbol_type': row['symbol_type'],
+                    'start_line': row['start_line'],
+                    'end_line': row['end_line'],
+                    'content': row['content'],
+                    'similarity': 0.0,
+                    'from_structural': True,
+                })
+    else:
+        return []
+
+    if not struct_q:
+        return results
+
+    # Exclude binaries, stylesheets, font files, and test/skill dirs from structural injection
+    qs = (
+        CodeChunk.objects
+        .filter(base_filter & struct_q)
+        .exclude(file_path__iregex=r'\.(ctg\.z|z|otf|ttf|woff|woff2|eot|icc|ai|fdf|css|scss|less|map|md)$')
+        .exclude(file_path__icontains='skill-creator/')
+        .exclude(file_path__icontains='.agents/')
+        .values('id', 'file_path', 'symbol_name', 'class_name',
+                'symbol_type', 'start_line', 'end_line', 'content')[:limit]
+    )
+
+    for row in qs:
+        results.append({
+            'id': row['id'],
+            'file_path': row['file_path'],
+            'symbol_name': row['symbol_name'],
+            'class_name': row['class_name'],
+            'symbol_type': row['symbol_type'],
+            'start_line': row['start_line'],
+            'end_line': row['end_line'],
+            'content': row['content'],
+            'similarity': 0.0,
+            'from_structural': True,
+        })
     return results
 
 
@@ -647,13 +790,15 @@ def search_code_hybrid(
     query_text: str,
     n_candidates: int = RAG_RETRIEVAL_CANDIDATES,
     top_k: int = RAG_CONTEXT_TOP_K,
-) -> list[dict]:
+    return_meta: bool = False,
+) -> tuple[list[dict], dict] | list[dict]:
     """
-    Three-stage hybrid retrieval:
+    Four-stage hybrid retrieval:
 
     Stage 1A — Semantic vector search: retrieve n_candidates code chunks.
     Stage 1B — Keyword/identifier search: retrieve KEYWORD_CANDIDATES code chunks.
     Stage 1C — Commit memory search: retrieve commit history matches (Phase 3).
+    Stage 1D — Structural candidate injection: retrieve entry points, docs, and manifests.
 
     Merge + deduplicate by chunk id.
 
@@ -663,7 +808,15 @@ def search_code_hybrid(
     All queries are strictly scoped to repository_id.
     """
     if not query_text.strip():
-        return []
+        meta = {
+            'query_vec': [],
+            'semantic_count': 0,
+            'keyword_count': 0,
+            'commit_count': 0,
+            'structural_count': 0,
+            'total_candidates': 0,
+        }
+        return ([], meta) if return_meta else []
 
     # Stage 1A: Semantic vector search
     query_vec = embed_text(query_text)
@@ -679,7 +832,10 @@ def search_code_hybrid(
     # Stage 1C: Commit memory search (Phase 3)
     commit_results = _search_commit_memory(repository_id, query_text, query_vec, limit=5)
 
-    # Merge: semantic results take priority; keyword results fill in missing chunks
+    # Stage 1D: Structural candidate injection
+    structural_results = _search_structural_candidates(repository_id, query_text, limit=15)
+
+    # Merge: semantic results take priority; keyword/structural results fill in missing chunks
     seen_ids: set = set()
     merged: list[dict] = []
 
@@ -695,6 +851,18 @@ def search_code_hybrid(
             seen_ids.add(cid)
             merged.append(chunk)
 
+    for chunk in structural_results:
+        cid = chunk.get('id')
+        if cid not in seen_ids:
+            seen_ids.add(cid)
+            merged.append(chunk)
+        else:
+            # Mark existing chunk as structural match
+            for m in merged:
+                if m.get('id') == cid:
+                    m['from_structural'] = True
+                    break
+
     # Add commit results with prefixed IDs to avoid collision with code chunk IDs
     for chunk in commit_results:
         cid = f"commit-{chunk.get('id')}"
@@ -702,10 +870,21 @@ def search_code_hybrid(
             seen_ids.add(cid)
             merged.append(chunk)
 
+    meta = {
+        'query_vec': query_vec,
+        'semantic_count': len(semantic_results),
+        'keyword_count': len(keyword_results),
+        'commit_count': len(commit_results),
+        'structural_count': len(structural_results),
+        'total_candidates': len(merged),
+    }
+
     logger.debug(
-        'Hybrid retrieval: repo=%d  semantic=%d  keyword=%d  commits=%d  total=%d',
-        repository_id, len(semantic_results), len(keyword_results), len(commit_results), len(merged),
+        'Hybrid retrieval: repo=%d  semantic=%d  keyword=%d  commits=%d  structural=%d  total=%d',
+        repository_id, len(semantic_results), len(keyword_results), len(commit_results), len(structural_results), len(merged),
     )
+    if return_meta:
+        return merged, meta
     return merged
 
 
@@ -716,6 +895,7 @@ def search_code(
     query_text: str,
     top_k: int = DEFAULT_TOP_K,
     return_all_evaluated: bool = False,
+    return_retrieval_meta: bool = False,
 ):
     """
     Backward-compatible retrieval function.
@@ -729,26 +909,38 @@ def search_code(
         top_k: Final number of chunks to return.
         return_all_evaluated: If True, returns tuple (accepted_top_k, all_evaluated_candidates)
                               for diagnostic/debug purposes.
+        return_retrieval_meta: If True, also includes retrieval stage counts and query vector.
 
     Returns:
-        List of chunk dicts with similarity, semantic_score, keyword_score,
-        identifier_score, path_score, intent_score, and final_score fields.
+        List of chunk dicts or tuple depending on flags.
     """
     from rag.reranker import rerank
 
-    candidates = search_code_hybrid(
+    hybrid_out = search_code_hybrid(
         repository_id=repository_id,
         query_text=query_text,
         n_candidates=RAG_RETRIEVAL_CANDIDATES,
         top_k=top_k,
+        return_meta=True,
     )
+    candidates, meta = hybrid_out
 
     if not candidates:
+        if return_retrieval_meta:
+            return ([], [], meta) if return_all_evaluated else ([], meta)
         return ([], []) if return_all_evaluated else []
 
-    return rerank(
+    rerank_out = rerank(
         candidates,
         query=query_text,
         top_k=top_k,
-        return_all_evaluated=return_all_evaluated,
+        return_all_evaluated=return_all_evaluated or return_retrieval_meta,
     )
+
+    if return_all_evaluated or return_retrieval_meta:
+        accepted, evaluated = rerank_out
+        if return_retrieval_meta:
+            return accepted, evaluated, meta
+        return accepted, evaluated
+
+    return rerank_out

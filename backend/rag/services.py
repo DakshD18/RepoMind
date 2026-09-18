@@ -217,51 +217,68 @@ def handle_chat(
         repository_id=repository_id,
         query_text=retrieval_query,
         top_k=RAG_CONTEXT_TOP_K,
-        return_all_evaluated=debug,
+        return_all_evaluated=True,
+        return_retrieval_meta=True,
     )
-    if isinstance(res, tuple) and len(res) == 2:
+    if isinstance(res, tuple) and len(res) == 3:
+        chunks, all_evaluated, retrieval_meta = res
+    elif isinstance(res, tuple) and len(res) == 2:
         chunks, all_evaluated = res
+        retrieval_meta = {}
     else:
-        chunks = res
-        all_evaluated = res
-
-    logger.info(
-        'RAG: repo=%d  query_type=%s  query="%s"  chunks_found=%d',
-        repository_id, query_type, message[:60], len(chunks),
-    )
+        chunks = res if isinstance(res, list) else []
+        all_evaluated = res if isinstance(res, list) else []
+        retrieval_meta = {}
 
     # ── 6. No-context handling ────────────────────────────────────────────────
     # If no chunks passed the absolute relevance gate or top chunk is below threshold, skip Gemini
     top_score = chunks[0].get('final_score', chunks[0].get('similarity', 0)) if chunks else 0
     no_context_guard_triggered = not chunks or top_score < RAG_NO_CONTEXT_THRESHOLD
 
-    if no_context_guard_triggered:
-        if query_type == QueryType.HISTORY:
-            commit_candidates = [c for c in (all_evaluated or chunks) if c.get('symbol_type') == 'commit']
-            top_commit_shas = [c.get('commit_sha', '')[:7] for c in chunks if c.get('symbol_type') == 'commit'][:5]
-            sim_scores = [round(c.get('similarity', 0), 4) for c in chunks if c.get('symbol_type') == 'commit'][:5]
-            reranked_scores = [round(c.get('final_score', 0), 4) for c in chunks if c.get('symbol_type') == 'commit'][:5]
-            logger.info(
-                'HISTORY RETRIEVAL DEBUG:\n'
-                '  - repository ID: %d\n'
-                '  - number of CommitMemory records: %d\n'
-                '  - query type: %s\n'
-                '  - number of commit candidates: %d\n'
-                '  - top commit SHAs: %s\n'
-                '  - similarity scores: %s\n'
-                '  - reranked scores: %s\n'
-                '  - whether the no-context guard triggered: %s\n'
-                '  - final context length: 0',
-                repository_id,
-                commit_memory_count,
-                query_type,
-                len(commit_candidates),
-                top_commit_shas,
-                sim_scores,
-                reranked_scores,
-                no_context_guard_triggered,
-            )
+    # Detailed stage-by-stage debug logging
+    top_candidates_log = []
+    for i, c in enumerate((all_evaluated or [])[:10]):
+        status = "ACCEPTED" if c.get('selected') else f"REJECTED ({c.get('rejection_reason', 'below threshold')})"
+        struct_sc = round(c.get('path_score', 0.0) + max(0.0, c.get('intent_score', 0.0)), 4)
+        top_candidates_log.append(
+            f"    [{i+1}] {c.get('file_path')} ({c.get('symbol_name')}) -> "
+            f"final={c.get('final_score', 0.0):.3f}, sem={c.get('semantic_score', c.get('similarity', 0.0)):.3f}, "
+            f"ident={c.get('identifier_score', 0.0):.3f}, struct={struct_sc:.3f} | {status}"
+        )
+    top_candidates_str = "\n".join(top_candidates_log) if top_candidates_log else "    (none)"
 
+    logger.info(
+        "RETRIEVAL PIPELINE STAGE DEBUG:\n"
+        "  - Repository: %s (ID: %d)\n"
+        "  - Query Type: %s\n"
+        "  - User Query: %s\n"
+        "  - Retrieval Query: %s\n"
+        "  - Query Embedding: dims=%d, sample=%s\n"
+        "  - Candidate Counts: semantic=%d, keyword=%d, commits=%d, structural=%d, total_merged=%d\n"
+        "  - Top Evaluated Candidates (%d total):\n%s\n"
+        "  - Final Gated Chunks Count: %d\n"
+        "  - No-Context Guard Triggered: %s\n"
+        "  - Gemini Called: %s",
+        repository.name,
+        repository_id,
+        query_type,
+        message,
+        retrieval_query,
+        len(retrieval_meta.get('query_vec', [])),
+        [round(x, 4) for x in retrieval_meta.get('query_vec', [])[:4]],
+        retrieval_meta.get('semantic_count', 0),
+        retrieval_meta.get('keyword_count', 0),
+        retrieval_meta.get('commit_count', 0),
+        retrieval_meta.get('structural_count', 0),
+        retrieval_meta.get('total_candidates', 0),
+        len(all_evaluated or []),
+        top_candidates_str,
+        len(chunks),
+        no_context_guard_triggered,
+        not no_context_guard_triggered,
+    )
+
+    if no_context_guard_triggered:
         no_context_answer = (
             "I couldn't find enough relevant information in this repository's "
             "indexed code to answer that confidently. This can happen if:\n\n"
@@ -288,6 +305,20 @@ def handle_chat(
             'sources': [],
         }
         if debug:
+            result['debug_info'] = {
+                'query_type': query_type,
+                'query_embedding_dims': len(retrieval_meta.get('query_vec', [])),
+                'query_embedding_sample': [round(x, 4) for x in retrieval_meta.get('query_vec', [])[:5]],
+                'candidate_counts': {
+                    'semantic': retrieval_meta.get('semantic_count', 0),
+                    'keyword': retrieval_meta.get('keyword_count', 0),
+                    'commits': retrieval_meta.get('commit_count', 0),
+                    'structural': retrieval_meta.get('structural_count', 0),
+                    'total_merged': retrieval_meta.get('total_candidates', 0),
+                },
+                'final_context_chunk_count': 0,
+                'gemini_called': False,
+            }
             result['debug_chunks'] = [
                 {
                     'file_path':        c.get('file_path', ''),
@@ -296,6 +327,7 @@ def handle_chat(
                     'similarity':       round(c.get('semantic_score', c.get('similarity', 0)), 4),
                     'semantic_score':   round(c.get('semantic_score', c.get('similarity', 0)), 4),
                     'identifier_score': round(c.get('identifier_score', 0), 4),
+                    'structural_score': round(c.get('path_score', 0.0) + max(0.0, c.get('intent_score', 0.0)), 4),
                     'keyword_score':    round(c.get('keyword_score', 0), 4),
                     'path_score':       round(c.get('path_score', 0), 4),
                     'intent_score':     round(c.get('intent_score', 0), 4),
@@ -311,32 +343,6 @@ def handle_chat(
 
     # ── 7. Build structured context ───────────────────────────────────────────
     context = build_context(repository.name, chunks)
-
-    if query_type == QueryType.HISTORY:
-        commit_candidates = [c for c in (all_evaluated or chunks) if c.get('symbol_type') == 'commit']
-        top_commit_shas = [c.get('commit_sha', '')[:7] for c in chunks if c.get('symbol_type') == 'commit'][:5]
-        sim_scores = [round(c.get('similarity', 0), 4) for c in chunks if c.get('symbol_type') == 'commit'][:5]
-        reranked_scores = [round(c.get('final_score', 0), 4) for c in chunks if c.get('symbol_type') == 'commit'][:5]
-        logger.info(
-            'HISTORY RETRIEVAL DEBUG:\n'
-            '  - repository ID: %d\n'
-            '  - number of CommitMemory records: %d\n'
-            '  - query type: %s\n'
-            '  - number of commit candidates: %d\n'
-            '  - top commit SHAs: %s\n'
-            '  - similarity scores: %s\n'
-            '  - reranked scores: %s\n'
-            '  - whether the no-context guard triggered: False\n'
-            '  - final context length: %d',
-            repository_id,
-            commit_memory_count,
-            query_type,
-            len(commit_candidates),
-            top_commit_shas,
-            sim_scores,
-            reranked_scores,
-            len(context),
-        )
 
     # ── 8. Call Gemini (grounded) ─────────────────────────────────────────────
     raw_answer = call_gemini(
@@ -381,6 +387,20 @@ def handle_chat(
 
     # ── 11. Retrieval debug mode ───────────────────────────────────────────────
     if debug:
+        result['debug_info'] = {
+            'query_type': query_type,
+            'query_embedding_dims': len(retrieval_meta.get('query_vec', [])),
+            'query_embedding_sample': [round(x, 4) for x in retrieval_meta.get('query_vec', [])[:5]],
+            'candidate_counts': {
+                'semantic': retrieval_meta.get('semantic_count', 0),
+                'keyword': retrieval_meta.get('keyword_count', 0),
+                'commits': retrieval_meta.get('commit_count', 0),
+                'structural': retrieval_meta.get('structural_count', 0),
+                'total_merged': retrieval_meta.get('total_candidates', 0),
+            },
+            'final_context_chunk_count': len(chunks),
+            'gemini_called': True,
+        }
         result['debug_chunks'] = [
             {
                 'file_path':        c.get('file_path', ''),
@@ -389,6 +409,7 @@ def handle_chat(
                 'similarity':       round(c.get('semantic_score', c.get('similarity', 0)), 4),
                 'semantic_score':   round(c.get('semantic_score', c.get('similarity', 0)), 4),
                 'identifier_score': round(c.get('identifier_score', 0), 4),
+                'structural_score': round(c.get('path_score', 0.0) + max(0.0, c.get('intent_score', 0.0)), 4),
                 'keyword_score':    round(c.get('keyword_score', 0), 4),
                 'path_score':       round(c.get('path_score', 0), 4),
                 'intent_score':     round(c.get('intent_score', 0), 4),
