@@ -5,6 +5,7 @@ import LoginPage from '../pages/LoginPage';
 import Dashboard from '../pages/Dashboard';
 import RepositoryOverview from '../pages/RepositoryOverview';
 import RepositoryChat from '../pages/RepositoryChat';
+import ImpactAnalysis from '../pages/ImpactAnalysis';
 import { useAuth } from '../context/AuthContext';
 
 const AppRoutes = () => {
@@ -53,6 +54,16 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <RepositoryChat />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Phase 4 — Impact Analysis */}
+      <Route
+        path="/repository/:id/impact"
+        element={
+          <ProtectedRoute>
+            <ImpactAnalysis />
           </ProtectedRoute>
         }
       />

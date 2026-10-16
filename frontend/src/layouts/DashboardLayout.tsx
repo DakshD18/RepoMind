@@ -43,17 +43,6 @@ interface NavItem {
   soon?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { text: 'Dashboard', icon: <DashboardIcon fontSize="small" />, path: '/dashboard' },
-  { text: 'Repository Chat', icon: <ChatOutlinedIcon fontSize="small" />, soon: true },
-  { text: 'Architecture', icon: <AccountTreeOutlinedIcon fontSize="small" />, soon: true },
-  { text: 'Repository Memory', icon: <MemoryIcon fontSize="small" />, soon: true },
-  { text: 'Impact Analysis', icon: <FlashOnOutlinedIcon fontSize="small" />, soon: true },
-  { text: 'Health Dashboard', icon: <HealthAndSafetyOutlinedIcon fontSize="small" />, soon: true },
-  { text: 'Technical Debt', icon: <WarningAmberOutlinedIcon fontSize="small" />, soon: true },
-  { text: 'Settings', icon: <SettingsOutlinedIcon fontSize="small" />, soon: true },
-];
-
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +52,31 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Detect active repository context from current URL
+  const repoMatch = location.pathname.match(/\/repository\/(\d+)/);
+  const currentRepoId = repoMatch ? repoMatch[1] : null;
+
+  const navItems: NavItem[] = [
+    { text: 'Dashboard', icon: <DashboardIcon fontSize="small" />, path: '/dashboard' },
+    {
+      text: 'Repository Chat',
+      icon: <ChatOutlinedIcon fontSize="small" />,
+      path: currentRepoId ? `/repository/${currentRepoId}/chat` : undefined,
+      soon: !currentRepoId,
+    },
+    { text: 'Architecture', icon: <AccountTreeOutlinedIcon fontSize="small" />, soon: true },
+    { text: 'Repository Memory', icon: <MemoryIcon fontSize="small" />, soon: true },
+    {
+      text: 'Impact Analysis',
+      icon: <FlashOnOutlinedIcon fontSize="small" />,
+      path: currentRepoId ? `/repository/${currentRepoId}/impact` : undefined,
+      soon: !currentRepoId,
+    },
+    { text: 'Health Dashboard', icon: <HealthAndSafetyOutlinedIcon fontSize="small" />, soon: true },
+    { text: 'Technical Debt', icon: <WarningAmberOutlinedIcon fontSize="small" />, soon: true },
+    { text: 'Settings', icon: <SettingsOutlinedIcon fontSize="small" />, soon: true },
+  ];
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -163,7 +177,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
       {/* Navigation Menu */}
       <List sx={{ px: 1.5, py: 0.5, flex: 1 }}>
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isActive = item.path && location.pathname === item.path;
           return (
             <ListItem key={item.text} disablePadding sx={{ mb: 0.6 }}>

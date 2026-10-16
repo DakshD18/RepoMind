@@ -1,5 +1,13 @@
-import axios from 'axios'; //library for http requests(JS)
-import type { AuthResponse, Repository, ChatSession, ChatResponse, IndexResponse } from '../types';
+import axios from 'axios';
+import type {
+  AuthResponse,
+  Repository,
+  ChatSession,
+  ChatResponse,
+  IndexResponse,
+  ImpactFilesResponse,
+  ImpactAnalysisResponse,
+} from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
@@ -94,6 +102,23 @@ export const getChatSession = (repoId: number, sessionId: number): Promise<ChatS
 
 export const deleteChatSession = (repoId: number, sessionId: number): Promise<void> =>
   api.delete(`/repositories/${repoId}/sessions/${sessionId}/`).then(() => undefined);
+
+// ─── Phase 4: Impact Analysis ─────────────────────────────────────────────
+
+export const getImpactFiles = (repoId: number | string): Promise<ImpactFilesResponse> =>
+  api.get(`/repositories/${repoId}/impact/files/`).then((res) => res.data);
+
+export const analyzeImpact = (
+  repoId: number | string,
+  filePath: string,
+  forceRebuild: boolean = false
+): Promise<ImpactAnalysisResponse> =>
+  api
+    .post(`/repositories/${repoId}/impact/`, {
+      file_path: filePath,
+      force_rebuild: forceRebuild,
+    })
+    .then((res) => res.data);
 
 export default api;
 

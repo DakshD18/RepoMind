@@ -50,3 +50,6 @@ Thumbs.db
 # Secrets
 *.pem
 *.key
+
+# RepoMind caches
+*.repomind_impact_cache.json

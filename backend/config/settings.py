@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'embeddings',
     'rag',
     'memory',
+    'impact',
 ]
 
 MIDDLEWARE = [

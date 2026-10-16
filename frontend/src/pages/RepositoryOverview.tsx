@@ -20,6 +20,7 @@ import CommitIcon from '@mui/icons-material/Commit';
 import CodeIcon from '@mui/icons-material/Code';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -437,9 +438,10 @@ export const RepositoryOverview: React.FC = () => {
                 onClick: () => navigate(`/repository/${id}/chat`),
               },
               {
-                title: 'View Architecture',
-                desc: 'Interactive diagram of folders and dependencies across the codebase.',
-                icon: <AccountTreeIcon sx={{ color: '#ffd21f' }} />,
+                title: 'Impact Analysis',
+                desc: 'Trace direct and transitive dependents, risk levels, and cascading consequences.',
+                icon: <FlashOnIcon sx={{ color: '#ffd21f' }} />,
+                onClick: () => navigate(`/repository/${id}/impact`),
               },
               {
                 title: 'Repository Health',
