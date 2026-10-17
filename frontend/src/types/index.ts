@@ -123,6 +123,7 @@ export interface DependencyTreeNode {
   depth: number;
   relationship_type?: string;
   imported_symbols?: string[];
+  line_number?: number;
   children: DependencyTreeNode[];
 }
 

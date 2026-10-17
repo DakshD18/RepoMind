@@ -104,6 +104,7 @@ def analyze_file_impact(graph: RepositoryDependencyGraph, target_file: str, max_
                 child_tree = build_tree(dep, current_depth + 1, new_chain)
                 child_tree['relationship_type'] = edge.relationship_type
                 child_tree['imported_symbols'] = edge.imported_symbols
+                child_tree['line_number'] = edge.line_number
                 node_tree['children'].append(child_tree)
 
         return node_tree

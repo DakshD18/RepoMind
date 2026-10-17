@@ -15,7 +15,6 @@ import {
   Tab,
   IconButton,
   Tooltip,
-  Alert,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -35,11 +34,11 @@ import toast from 'react-hot-toast';
 
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { getDashboardRepository, getImpactFiles, analyzeImpact } from '../services/api';
+import DependencyTreeViewer from '../components/DependencyTreeViewer';
 import type {
   Repository,
   ImpactFilesResponse,
   ImpactAnalysisResponse,
-  DependencyTreeNode,
 } from '../types';
 
 export const ImpactAnalysis: React.FC = () => {
@@ -144,116 +143,6 @@ export const ImpactAnalysis: React.FC = () => {
         };
     }
   }, [impactResult]);
-
-  // Recursive Tree Component
-  const renderTree = (node: DependencyTreeNode, depth = 0) => {
-    const isRoot = depth === 0;
-
-    return (
-      <Box
-        key={`${node.file_path}-${depth}`}
-        sx={{
-          ml: isRoot ? 0 : 3.5,
-          pl: isRoot ? 0 : 2,
-          borderLeft: isRoot ? 'none' : '1px dashed rgba(255, 210, 31, 0.25)',
-          position: 'relative',
-          my: 1.2,
-        }}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            p: 1.4,
-            borderRadius: '10px',
-            background: isRoot ? 'rgba(255, 210, 31, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-            border: isRoot ? '1px solid rgba(255, 210, 31, 0.4)' : '1px solid rgba(255, 255, 255, 0.06)',
-            transition: 'all 0.2s ease',
-            '&:hover': {
-              background: 'rgba(255, 255, 255, 0.06)',
-              borderColor: 'rgba(255, 210, 31, 0.3)',
-            },
-          }}
-        >
-          <InsertDriveFileIcon sx={{ fontSize: '1.1rem', color: isRoot ? '#ffd21f' : '#94a3b8' }} />
-
-          <Typography
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: '0.88rem',
-              fontWeight: isRoot ? 700 : 500,
-              color: isRoot ? '#ffd21f' : '#e2e8f0',
-            }}
-          >
-            {node.file_path}
-          </Typography>
-
-          {node.relationship_type && (
-            <Chip
-              label={node.relationship_type.replace('_', ' ')}
-              size="small"
-              sx={{
-                height: 20,
-                fontSize: '0.68rem',
-                fontWeight: 600,
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#cbd5e1',
-                textTransform: 'uppercase',
-              }}
-            />
-          )}
-
-          {node.imported_symbols && node.imported_symbols.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 0.6, flexWrap: 'wrap', ml: 'auto' }}>
-              {node.imported_symbols.slice(0, 3).map((sym) => (
-                <Chip
-                  key={sym}
-                  label={sym}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    height: 18,
-                    fontSize: '0.65rem',
-                    fontFamily: 'monospace',
-                    borderColor: 'rgba(255, 210, 31, 0.3)',
-                    color: '#fef08a',
-                  }}
-                />
-              ))}
-              {node.imported_symbols.length > 3 && (
-                <Typography sx={{ fontSize: '0.7rem', color: '#94a3b8', alignSelf: 'center' }}>
-                  +{node.imported_symbols.length - 3} more
-                </Typography>
-              )}
-            </Box>
-          )}
-
-          {isRoot && (
-            <Chip
-              label="TARGET FILE"
-              size="small"
-              sx={{
-                ml: 'auto',
-                height: 22,
-                fontSize: '0.68rem',
-                fontWeight: 800,
-                background: '#ffd21f',
-                color: '#050505',
-                letterSpacing: '0.5px',
-              }}
-            />
-          )}
-        </Box>
-
-        {node.children && node.children.length > 0 && (
-          <Box sx={{ mt: 0.8 }}>
-            {node.children.map((child) => renderTree(child, depth + 1))}
-          </Box>
-        )}
-      </Box>
-    );
-  };
 
   return (
     <DashboardLayout>
@@ -709,19 +598,20 @@ export const ImpactAnalysis: React.FC = () => {
 
                 {/* Tab 0: Dependency Tree */}
                 {activeTab === 0 && (
-                  <Box sx={{ p: 3 }}>
-                    <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8', mb: 2 }}>
-                      Hierarchical visualization of cascading dependencies starting from <strong>{impactResult.target_file}</strong>.
-                    </Typography>
-                    {impactResult.summary.total_affected_files === 0 ? (
-                      <Alert severity="info" sx={{ background: 'rgba(255, 210, 31, 0.08)', color: '#ffd21f', border: '1px solid rgba(255, 210, 31, 0.2)' }}>
-                        No files in the repository depend on this file. It is a leaf module; modifications are unlikely to affect other files.
-                      </Alert>
-                    ) : (
-                      <Box sx={{ maxHeight: 600, overflowY: 'auto', p: 1 }}>
-                        {renderTree(impactResult.dependency_tree)}
-                      </Box>
-                    )}
+                  <Box sx={{ p: { xs: 2, sm: 3 } }}>
+                    <DependencyTreeViewer
+                      rootNode={impactResult.dependency_tree}
+                      totalAffected={impactResult.summary.total_affected_files}
+                      directCount={impactResult.summary.direct_dependent_count}
+                      transitiveCount={impactResult.summary.transitive_dependent_count}
+                      targetMetadata={impactResult.target_metadata}
+                      repoUrl={repo?.url}
+                      defaultBranch={repo?.default_branch}
+                      onSelectFile={(filePath) => {
+                        setSelectedFile(filePath);
+                        handleAnalyze(filePath);
+                      }}
+                    />
                   </Box>
                 )}
 
