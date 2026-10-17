@@ -7,6 +7,11 @@ import type {
   IndexResponse,
   ImpactFilesResponse,
   ImpactAnalysisResponse,
+  HealthOverviewResponse,
+  HealthScanResponse,
+  PaginatedFindingsResponse,
+  HealthFilesResponse,
+  HealthTrendsResponse,
 } from '../types';
 
 const api = axios.create({
@@ -119,6 +124,49 @@ export const analyzeImpact = (
       force_rebuild: forceRebuild,
     })
     .then((res) => res.data);
+
+// ─── Phase 5: Repository Health Dashboard ─────────────────────────────────
+
+export const getRepoHealth = (repoId: number | string): Promise<HealthOverviewResponse> =>
+  api.get(`/repositories/${repoId}/health/`).then((res) => res.data);
+
+export const triggerHealthScan = (
+  repoId: number | string,
+  forceRescan: boolean = false,
+  generateAi: boolean = true
+): Promise<HealthScanResponse> =>
+  api
+    .post(`/repositories/${repoId}/health/scan/`, {
+      force_rescan: forceRescan,
+      generate_ai_summary: generateAi,
+    })
+    .then((res) => res.data);
+
+export const getHealthFindings = (
+  repoId: number | string,
+  params?: {
+    severity?: string;
+    category?: string;
+    file_path?: string;
+    search?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<PaginatedFindingsResponse> =>
+  api.get(`/repositories/${repoId}/health/findings/`, { params }).then((res) => res.data);
+
+export const getHealthFiles = (
+  repoId: number | string,
+  params?: {
+    search?: string;
+    ordering?: string;
+    has_issues_only?: boolean;
+  }
+): Promise<HealthFilesResponse> =>
+  api.get(`/repositories/${repoId}/health/files/`, { params }).then((res) => res.data);
+
+export const getHealthTrends = (repoId: number | string): Promise<HealthTrendsResponse> =>
+  api.get(`/repositories/${repoId}/health/trends/`).then((res) => res.data);
 
 export default api;
 

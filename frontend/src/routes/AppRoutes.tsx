@@ -6,6 +6,7 @@ import Dashboard from '../pages/Dashboard';
 import RepositoryOverview from '../pages/RepositoryOverview';
 import RepositoryChat from '../pages/RepositoryChat';
 import ImpactAnalysis from '../pages/ImpactAnalysis';
+import HealthDashboard from '../pages/HealthDashboard';
 import { useAuth } from '../context/AuthContext';
 
 const AppRoutes = () => {
@@ -64,6 +65,16 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ImpactAnalysis />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Phase 5 — Health Dashboard */}
+      <Route
+        path="/repository/:id/health"
+        element={
+          <ProtectedRoute>
+            <HealthDashboard />
           </ProtectedRoute>
         }
       />

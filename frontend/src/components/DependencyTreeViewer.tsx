@@ -397,10 +397,10 @@ export const DependencyTreeViewer: React.FC<DependencyTreeViewerProps> = ({
               },
             }}
           >
-            {/* Main Single Row */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0 }}>
-              {/* Expand / Collapse Button or Leaf Dot */}
-              <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            {/* Main Single Row with aligned columnar layout */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, width: '100%' }}>
+              {/* 1. Expand / Leaf Dot + Language Icon (Fixed 44px width) */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, width: 44, flexShrink: 0 }}>
                 {hasChildren ? (
                   <Box
                     sx={{
@@ -445,22 +445,125 @@ export const DependencyTreeViewer: React.FC<DependencyTreeViewerProps> = ({
                     />
                   </Box>
                 )}
+                <CodeIcon sx={{ fontSize: '1.05rem', color: langDetails.color, flexShrink: 0 }} />
               </Box>
 
-              {/* Language Icon */}
-              <CodeIcon sx={{ fontSize: '1.05rem', color: langDetails.color, flexShrink: 0 }} />
-
-              {/* File Path */}
-              <Box sx={{ flex: 1, minWidth: 0 }}>
+              {/* 2. File Path Column (Depth-compensated so columns align in one straight vertical line across all rows) */}
+              <Box
+                sx={{
+                  width: {
+                    xs: '100%',
+                    sm: Math.max(160, 210 - (depth - 1) * 20),
+                    md: Math.max(180, 240 - (depth - 1) * 20),
+                    lg: Math.max(200, 270 - (depth - 1) * 20),
+                  },
+                  flexShrink: 0,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                }}
+              >
                 {renderPath(node.file_path, node.line_number)}
               </Box>
 
-              {/* Right Side Badges */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexShrink: 0 }}>
-                {/* Transitive Depth Badge if depth > 1 */}
-                {depth > 1 && (
+              {/* 3. Column: Relationship Badge (Fixed 114px width, perfectly straight vertical alignment) */}
+              <Box sx={{ width: 114, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                {relBadge ? (
                   <Chip
-                    label={`TRANSITIVE • DEPTH ${depth}`}
+                    label={relBadge.label}
+                    size="small"
+                    sx={{
+                      width: '100%',
+                      height: 20,
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      background: relBadge.bg,
+                      color: relBadge.color,
+                      border: `1px solid ${relBadge.border}`,
+                      justifyContent: 'center',
+                    }}
+                  />
+                ) : (
+                  <Box sx={{ width: '100%' }} />
+                )}
+              </Box>
+
+              {/* 4. Column: Line Number (Fixed 40px width, perfectly straight vertical alignment) */}
+              <Box sx={{ width: 40, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                {node.line_number ? (
+                  <Typography
+                    sx={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.70rem',
+                      color: '#94a3b8',
+                      fontWeight: 600,
+                    }}
+                  >
+                    L{node.line_number}
+                  </Typography>
+                ) : (
+                  <Typography sx={{ fontFamily: 'monospace', fontSize: '0.70rem', color: '#475569' }}>
+                    —
+                  </Typography>
+                )}
+              </Box>
+
+              {/* 5. Column: Referenced Symbols (Fixed 165px width, perfectly straight vertical alignment) */}
+              {viewMode === 'detailed' && (
+                <Box sx={{ width: { xs: 120, sm: 140, md: 165 }, flexShrink: 0 }}>
+                  {symbolList.length > 0 ? (
+                    <Box
+                      onClick={(e) => toggleSymbols(nodeKey, e)}
+                      sx={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 0.5,
+                        px: 0.8,
+                        py: 0.2,
+                        borderRadius: '6px',
+                        background: symbolsExpanded ? 'rgba(255, 210, 31, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                        border: symbolsExpanded ? '1px solid rgba(255, 210, 31, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        '&:hover': {
+                          borderColor: '#ffd21f',
+                          background: 'rgba(255, 210, 31, 0.1)',
+                        },
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: '0.66rem',
+                          fontFamily: 'monospace',
+                          color: symbolsExpanded ? '#ffd21f' : '#cbd5e1',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {symbolList.length === 1 ? symbolList[0] : `${symbolList[0]} +${symbolList.length - 1} more`}
+                      </Typography>
+                      <ExpandMoreIcon
+                        sx={{
+                          fontSize: '0.85rem',
+                          color: symbolsExpanded ? '#ffd21f' : '#94a3b8',
+                          transform: symbolsExpanded ? 'rotate(180deg)' : 'none',
+                          transition: 'transform 0.15s ease',
+                          flexShrink: 0,
+                        }}
+                      />
+                    </Box>
+                  ) : null}
+                </Box>
+              )}
+
+              {/* 6. Compact Transitive Depth / Children Count Badge */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, flexShrink: 0 }}>
+                {depth > 1 && !hasChildren && (
+                  <Chip
+                    label={`Depth ${depth}`}
                     size="small"
                     sx={{
                       height: 20,
@@ -469,98 +572,30 @@ export const DependencyTreeViewer: React.FC<DependencyTreeViewerProps> = ({
                       background: 'rgba(148, 163, 184, 0.12)',
                       color: '#cbd5e1',
                       border: '1px solid rgba(148, 163, 184, 0.25)',
+                      px: 0.3,
                     }}
                   />
                 )}
 
-                {/* Relationship Badge */}
-                {relBadge && (
-                  <Chip
-                    label={relBadge.label}
-                    size="small"
-                    sx={{
-                      height: 20,
-                      fontSize: '0.64rem',
-                      fontWeight: 700,
-                      background: relBadge.bg,
-                      color: relBadge.color,
-                      border: `1px solid ${relBadge.border}`,
-                    }}
-                  />
-                )}
-
-                {/* Line Number */}
-                {node.line_number && (
-                  <Typography
-                    sx={{
-                      fontFamily: 'monospace',
-                      fontSize: '0.72rem',
-                      color: '#64748b',
-                      px: 0.5,
-                    }}
-                  >
-                    L{node.line_number}
-                  </Typography>
-                )}
-
-                {/* Symbols Preview / Expand Toggle */}
-                {symbolList.length > 0 && viewMode === 'detailed' && (
-                  <Box
-                    onClick={(e) => toggleSymbols(nodeKey, e)}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.4,
-                      px: 0.8,
-                      py: 0.2,
-                      borderRadius: '6px',
-                      background: symbolsExpanded ? 'rgba(255, 210, 31, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                      border: symbolsExpanded ? '1px solid rgba(255, 210, 31, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      '&:hover': {
-                        borderColor: '#ffd21f',
-                        background: 'rgba(255, 210, 31, 0.1)',
-                      },
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: '0.68rem',
-                        fontFamily: 'monospace',
-                        color: symbolsExpanded ? '#ffd21f' : '#cbd5e1',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {symbolList.length === 1 ? symbolList[0] : `${symbolList[0]} +${symbolList.length - 1} more`}
-                    </Typography>
-                    <ExpandMoreIcon
-                      sx={{
-                        fontSize: '0.85rem',
-                        color: symbolsExpanded ? '#ffd21f' : '#94a3b8',
-                        transform: symbolsExpanded ? 'rotate(180deg)' : 'none',
-                        transition: 'transform 0.15s ease',
-                      }}
-                    />
-                  </Box>
-                )}
-
-                {/* Transitive Children Count Badge */}
                 {hasChildren && (
                   <Chip
-                    label={`${node.children.length} dependent${node.children.length !== 1 ? 's' : ''}`}
+                    label={`${node.children.length} dep${node.children.length !== 1 ? 's' : ''}`}
                     size="small"
                     sx={{
                       height: 20,
                       fontSize: '0.62rem',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       background: 'rgba(255, 210, 31, 0.1)',
                       color: '#ffd21f',
+                      border: '1px solid rgba(255, 210, 31, 0.25)',
+                      px: 0.3,
                     }}
                   />
                 )}
+              </Box>
 
-                {/* Actions: GitHub Open, Copy Path & Impact Analysis */}
+              {/* 7. Action Buttons (Always fully visible, anchored flush to the right) */}
+              <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.4, flexShrink: 0 }}>
                 {nodeGhUrl && (
                   <Tooltip title={node.line_number ? `Open on GitHub (Line ${node.line_number})` : 'Open on GitHub'}>
                     <IconButton
@@ -570,12 +605,12 @@ export const DependencyTreeViewer: React.FC<DependencyTreeViewerProps> = ({
                         window.open(nodeGhUrl, '_blank', 'noopener,noreferrer');
                       }}
                       sx={{
-                        p: 0.4,
+                        p: 0.35,
                         color: '#94a3b8',
                         '&:hover': { color: '#ffd21f', background: 'rgba(255, 210, 31, 0.1)' },
                       }}
                     >
-                      <GitHubIcon sx={{ fontSize: '0.88rem' }} />
+                      <GitHubIcon sx={{ fontSize: '0.85rem' }} />
                     </IconButton>
                   </Tooltip>
                 )}
@@ -585,7 +620,7 @@ export const DependencyTreeViewer: React.FC<DependencyTreeViewerProps> = ({
                     size="small"
                     onClick={(e) => handleCopy(node.file_path, e)}
                     sx={{
-                      p: 0.4,
+                      p: 0.35,
                       color: copiedPath === node.file_path ? '#ffd21f' : '#64748b',
                       '&:hover': { color: '#ffffff' },
                     }}
@@ -603,7 +638,7 @@ export const DependencyTreeViewer: React.FC<DependencyTreeViewerProps> = ({
                     <Button
                       size="small"
                       variant="text"
-                      startIcon={<RadarIcon sx={{ fontSize: '0.82rem' }} />}
+                      startIcon={<RadarIcon sx={{ fontSize: '0.78rem' }} />}
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectFile(node.file_path);
@@ -616,10 +651,12 @@ export const DependencyTreeViewer: React.FC<DependencyTreeViewerProps> = ({
                         fontWeight: 700,
                         color: '#ffd21f',
                         borderRadius: '6px',
-                        background: 'rgba(255, 210, 31, 0.06)',
-                        border: '1px solid rgba(255, 210, 31, 0.2)',
+                        background: 'rgba(255, 210, 31, 0.08)',
+                        border: '1px solid rgba(255, 210, 31, 0.25)',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
                         '&:hover': {
-                          background: 'rgba(255, 210, 31, 0.15)',
+                          background: 'rgba(255, 210, 31, 0.18)',
                           borderColor: '#ffd21f',
                         },
                       }}

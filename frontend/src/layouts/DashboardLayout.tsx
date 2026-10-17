@@ -73,7 +73,12 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
       path: currentRepoId ? `/repository/${currentRepoId}/impact` : undefined,
       soon: !currentRepoId,
     },
-    { text: 'Health Dashboard', icon: <HealthAndSafetyOutlinedIcon fontSize="small" />, soon: true },
+    {
+      text: 'Health Dashboard',
+      icon: <HealthAndSafetyOutlinedIcon fontSize="small" />,
+      path: currentRepoId ? `/repository/${currentRepoId}/health` : undefined,
+      soon: !currentRepoId,
+    },
     { text: 'Technical Debt', icon: <WarningAmberOutlinedIcon fontSize="small" />, soon: true },
     { text: 'Settings', icon: <SettingsOutlinedIcon fontSize="small" />, soon: true },
   ];

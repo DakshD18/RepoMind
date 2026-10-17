@@ -447,6 +447,7 @@ export const RepositoryOverview: React.FC = () => {
                 title: 'Repository Health',
                 desc: 'Identify technical debt, security issues, and maintainability metrics.',
                 icon: <HealthAndSafetyOutlinedIcon sx={{ color: '#ffd21f' }} />,
+                onClick: () => navigate(`/repository/${id}/health`),
               },
               {
                 title: 'Reanalyse',
@@ -465,7 +466,7 @@ export const RepositoryOverview: React.FC = () => {
                     borderRadius: '16px',
                     p: 3,
                     height: '100%',
-                    cursor: action.onClick ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
                       borderColor: 'rgba(255, 210, 31, 0.45)',
