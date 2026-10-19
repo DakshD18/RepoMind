@@ -27,6 +27,7 @@ import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import MemoryIcon from '@mui/icons-material/Memory';
 import FlashOnOutlinedIcon from '@mui/icons-material/FlashOnOutlined';
 import HealthAndSafetyOutlinedIcon from '@mui/icons-material/HealthAndSafetyOutlined';
+import TimelineOutlinedIcon from '@mui/icons-material/TimelineOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -77,6 +78,12 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
       text: 'Health Dashboard',
       icon: <HealthAndSafetyOutlinedIcon fontSize="small" />,
       path: currentRepoId ? `/repository/${currentRepoId}/health` : undefined,
+      soon: !currentRepoId,
+    },
+    {
+      text: 'Productivity Intelligence',
+      icon: <TimelineOutlinedIcon fontSize="small" />,
+      path: currentRepoId ? `/repository/${currentRepoId}/productivity` : undefined,
       soon: !currentRepoId,
     },
     { text: 'Technical Debt', icon: <WarningAmberOutlinedIcon fontSize="small" />, soon: true },

@@ -7,6 +7,7 @@ import RepositoryOverview from '../pages/RepositoryOverview';
 import RepositoryChat from '../pages/RepositoryChat';
 import ImpactAnalysis from '../pages/ImpactAnalysis';
 import HealthDashboard from '../pages/HealthDashboard';
+import ProductivityDashboard from '../pages/ProductivityDashboard';
 import { useAuth } from '../context/AuthContext';
 
 const AppRoutes = () => {
@@ -75,6 +76,16 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <HealthDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Phase 6 — Productivity Intelligence */}
+      <Route
+        path="/repository/:id/productivity"
+        element={
+          <ProtectedRoute>
+            <ProductivityDashboard />
           </ProtectedRoute>
         }
       />

@@ -202,6 +202,66 @@ def fetch_commit_history(
 
     logger.info('Discovered %d new commits from GitHub for %s/%s', len(collected_commits), owner, name)
 
+    # ─── Fallback: Local Git Clone for private repositories or API limits ───
+    if not collected_commits:
+        from django.conf import settings as s
+        import git
+        clone_dir = s.CLONED_REPOS_DIR / f'{owner}_{name}_{repository.id}'
+        if os.path.exists(clone_dir):
+            try:
+                git_repo = git.Repo(clone_dir)
+                try:
+                    if os.path.exists(os.path.join(clone_dir, '.git', 'shallow')):
+                        git_repo.git.fetch('--unshallow')
+                except Exception:
+                    pass
+
+                for c in git_repo.iter_commits(max_count=target_limit):
+                    sha = c.hexsha
+                    if sha in stop_shas:
+                        break
+
+                    commit_dt = c.committed_datetime
+                    if since and commit_dt <= since:
+                        break
+
+                    files_changed = []
+                    stats_dict = {}
+                    try:
+                        c_stats = c.stats
+                        for fname, st in c_stats.files.items():
+                            files_changed.append({
+                                'filename': fname,
+                                'status': 'modified',
+                                'additions': st.get('insertions', 0),
+                                'deletions': st.get('deletions', 0),
+                            })
+                        stats_dict = {
+                            'total_additions': c_stats.total.get('insertions', 0),
+                            'total_deletions': c_stats.total.get('deletions', 0),
+                            'files_changed_count': c_stats.total.get('files', 0),
+                        }
+                    except Exception:
+                        pass
+
+                    collected_commits.append({
+                        'sha': sha,
+                        'author_name': c.author.name or 'Unknown',
+                        'author_email': c.author.email or '',
+                        'committed_date': commit_dt.isoformat(),
+                        'message': c.message or '',
+                        'files_changed': files_changed,
+                        'stats': stats_dict,
+                    })
+
+                logger.info(
+                    'Extracted %d commits from local Git repository clone for %s/%s',
+                    len(collected_commits), owner, name
+                )
+                return collected_commits
+            except Exception as err:
+                logger.warning('Failed reading commits from local clone for %s/%s: %s', owner, name, err)
+
     # ─── Selective File Detail Fetching (batched & rate-limit aware) ──────────
     detail_count = 0
     for commit in collected_commits:
@@ -314,13 +374,21 @@ def index_commit_history(
         for c in new_commits
     ]
 
-    # 4. Generate embeddings in batches
+    # 4. Generate embeddings in batches (optional enhancement for semantic search)
     BATCH_SIZE = 64
     all_embeddings: list = []
-    for i in range(0, len(embedding_texts), BATCH_SIZE):
-        batch_slice = embedding_texts[i:i + BATCH_SIZE]
-        batch_embeddings = embed_batch(batch_slice)
-        all_embeddings.extend(batch_embeddings)
+    try:
+        for i in range(0, len(embedding_texts), BATCH_SIZE):
+            batch_slice = embedding_texts[i:i + BATCH_SIZE]
+            batch_embeddings = embed_batch(batch_slice)
+            all_embeddings.extend(batch_embeddings)
+    except Exception as emb_exc:
+        logger.warning('Embedding generation failed or skipped: %s; proceeding without vectors', emb_exc)
+        all_embeddings = [None] * len(new_commits)
+
+    # Ensure embeddings length matches commits
+    if len(all_embeddings) < len(new_commits):
+        all_embeddings.extend([None] * (len(new_commits) - len(all_embeddings)))
 
     # 5. Persist CommitMemory records
     records = []

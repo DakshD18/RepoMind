@@ -1,4 +1,5 @@
 from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     GoogleAuthView,
     GitHubAuthView,
@@ -12,5 +13,6 @@ urlpatterns = [
     path('github/', GitHubAuthView.as_view(), name='github-auth'),
     path('login/', EmailLoginView.as_view(), name='email-login'),
     path('register/', EmailRegisterView.as_view(), name='email-register'),
+    path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('me/', CurrentUserView.as_view(), name='current-user'),
 ]

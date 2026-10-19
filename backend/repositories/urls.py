@@ -24,4 +24,7 @@ urlpatterns = [
 
     # Phase 5 — Health Dashboard
     path('<int:pk>/health/', include('health.urls')),
+
+    # Phase 6 — Productivity Intelligence
+    path('<int:pk>/productivity/', include('productivity.urls')),
 ]

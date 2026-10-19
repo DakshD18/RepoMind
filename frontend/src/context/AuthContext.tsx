@@ -23,16 +23,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const currentUser = await getCurrentUser();
           setUser(currentUser);
-        } catch {
-          // Token is invalid or expired — clear storage
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
+        } catch (err: any) {
+          // Only clear tokens if the server explicitly rejected auth (401/403)
+          // and token refresh was unable to recover. If the server is offline
+          // or has a network blip, preserve tokens so the session isn't lost.
+          if (err.response?.status === 401 || err.response?.status === 403) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            setUser(null);
+          }
         }
       }
       setIsLoading(false);
     };
 
     initAuth();
+
+    const handleAuthLogout = () => {
+      setUser(null);
+    };
+
+    window.addEventListener('auth:logout', handleAuthLogout);
+    return () => {
+      window.removeEventListener('auth:logout', handleAuthLogout);
+    };
   }, []);
 
   const login = (accessToken: string, refreshToken: string, userData: User) => {

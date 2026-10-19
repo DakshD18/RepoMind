@@ -12,6 +12,15 @@ import type {
   PaginatedFindingsResponse,
   HealthFilesResponse,
   HealthTrendsResponse,
+  ProductivityOverviewResponse,
+  ProductivityActivityResponse,
+  PaginatedContributorsResponse,
+  PaginatedHotspotsResponse,
+  FileDetailResponse,
+  ProductivityModulesResponse,
+  ProductivityChurnResponse,
+  ProductivityAIInsights,
+  ProductivityRefreshResponse,
 } from '../types';
 
 const api = axios.create({
@@ -32,14 +41,94 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle token expiry — redirect to login on 401
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Handle token expiry — automatically refresh access token or redirect on 401
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Network / connection error (e.g. backend temporarily down) — preserve tokens
+    if (!error.response) {
+      return Promise.reject(error);
     }
+
+    const requestUrl = originalRequest?.url || '';
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login/') ||
+      requestUrl.includes('/auth/register/') ||
+      requestUrl.includes('/auth/google/') ||
+      requestUrl.includes('/auth/github/') ||
+      requestUrl.includes('/auth/refresh/');
+
+    if (error.response.status === 401 && !originalRequest?._retry && !isAuthEndpoint) {
+      const storedRefreshToken = localStorage.getItem('refresh_token');
+
+      if (!storedRefreshToken) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.dispatchEvent(new Event('auth:logout'));
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+        const res = await axios.post(`${baseURL}/auth/refresh/`, {
+          refresh: storedRefreshToken,
+        });
+
+        const newAccessToken = res.data.access;
+        localStorage.setItem('access_token', newAccessToken);
+        if (res.data.refresh) {
+          localStorage.setItem('refresh_token', res.data.refresh);
+        }
+
+        api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+        processQueue(null, newAccessToken);
+        return api(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.dispatchEvent(new Event('auth:logout'));
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -167,6 +256,109 @@ export const getHealthFiles = (
 
 export const getHealthTrends = (repoId: number | string): Promise<HealthTrendsResponse> =>
   api.get(`/repositories/${repoId}/health/trends/`).then((res) => res.data);
+
+// ─── Phase 6: Productivity Intelligence ───────────────────────────────────
+
+export const getProductivityOverview = (
+  repoId: number | string,
+  params?: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    aggregation?: string;
+  }
+): Promise<ProductivityOverviewResponse> =>
+  api.get(`/repositories/${repoId}/productivity/`, { params }).then((res) => res.data);
+
+export const getProductivityActivity = (
+  repoId: number | string,
+  params?: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    aggregation?: string;
+  }
+): Promise<ProductivityActivityResponse> =>
+  api.get(`/repositories/${repoId}/productivity/activity/`, { params }).then((res) => res.data);
+
+export const getProductivityContributors = (
+  repoId: number | string,
+  params?: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    ordering?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<PaginatedContributorsResponse> =>
+  api.get(`/repositories/${repoId}/productivity/contributors/`, { params }).then((res) => res.data);
+
+export const getProductivityHotspots = (
+  repoId: number | string,
+  params?: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    ordering?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<PaginatedHotspotsResponse> =>
+  api.get(`/repositories/${repoId}/productivity/hotspots/`, { params }).then((res) => res.data);
+
+export const getFileHotspotDetail = (
+  repoId: number | string,
+  filePath: string
+): Promise<FileDetailResponse> =>
+  api
+    .get(`/repositories/${repoId}/productivity/hotspots/`, {
+      params: { file_path: filePath },
+    })
+    .then((res) => res.data);
+
+export const getProductivityModules = (
+  repoId: number | string,
+  params?: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+  }
+): Promise<ProductivityModulesResponse> =>
+  api.get(`/repositories/${repoId}/productivity/modules/`, { params }).then((res) => res.data);
+
+export const getProductivityChurn = (
+  repoId: number | string,
+  params?: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    aggregation?: string;
+  }
+): Promise<ProductivityChurnResponse> =>
+  api.get(`/repositories/${repoId}/productivity/churn/`, { params }).then((res) => res.data);
+
+export const getProductivityInsights = (
+  repoId: number | string,
+  params?: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+  },
+  forceRegenerate: boolean = false
+): Promise<ProductivityAIInsights> =>
+  forceRegenerate
+    ? api
+        .post(`/repositories/${repoId}/productivity/insights/`, { force_regenerate: true }, { params })
+        .then((res) => res.data)
+    : api.get(`/repositories/${repoId}/productivity/insights/`, { params }).then((res) => res.data);
+
+export const refreshProductivityAnalytics = (
+  repoId: number | string
+): Promise<ProductivityRefreshResponse> =>
+  api.post(`/repositories/${repoId}/productivity/refresh/`).then((res) => res.data);
 
 export default api;
 

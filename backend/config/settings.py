@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'memory',
     'impact',
     'health',
+    'productivity',
 ]
 
 MIDDLEWARE = [
