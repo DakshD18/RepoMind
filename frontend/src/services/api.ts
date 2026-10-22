@@ -21,6 +21,11 @@ import type {
   ProductivityChurnResponse,
   ProductivityAIInsights,
   ProductivityRefreshResponse,
+  ArchitectureOverview,
+  ArchitectureTreeResponse,
+  ArchitectureGraphResponse,
+  ArchitectureNodeDetail,
+  ArchitectureFindingsResponse,
 } from '../types';
 
 const api = axios.create({
@@ -360,5 +365,51 @@ export const refreshProductivityAnalytics = (
 ): Promise<ProductivityRefreshResponse> =>
   api.post(`/repositories/${repoId}/productivity/refresh/`).then((res) => res.data);
 
+// ─── Architecture Intelligence ─────────────────────────────────────────────
+
+export const getArchitectureOverview = (
+  repoId: number | string
+): Promise<ArchitectureOverview> =>
+  api.get(`/repositories/${repoId}/architecture/`).then((res) => res.data);
+
+export const getArchitectureTree = (
+  repoId: number | string,
+  search?: string
+): Promise<ArchitectureTreeResponse> =>
+  api
+    .get(`/repositories/${repoId}/architecture/tree/`, {
+      params: search ? { search } : undefined,
+    })
+    .then((res) => res.data);
+
+export const getArchitectureGraph = (
+  repoId: number | string,
+  params?: {
+    module?: string;
+    search?: string;
+    component_type?: string;
+    relationship_type?: string;
+    focus?: string;
+    limit?: number;
+  }
+): Promise<ArchitectureGraphResponse> =>
+  api.get(`/repositories/${repoId}/architecture/graph/`, { params }).then((res) => res.data);
+
+export const getArchitectureNodeDetail = (
+  repoId: number | string,
+  filePath: string
+): Promise<ArchitectureNodeDetail> =>
+  api
+    .get(`/repositories/${repoId}/architecture/node/`, {
+      params: { path: filePath },
+    })
+    .then((res) => res.data);
+
+export const getArchitectureFindings = (
+  repoId: number | string
+): Promise<ArchitectureFindingsResponse> =>
+  api.get(`/repositories/${repoId}/architecture/findings/`).then((res) => res.data);
+
 export default api;
+
 

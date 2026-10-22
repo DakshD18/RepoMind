@@ -188,5 +188,6 @@ export interface ImpactFilesResponse {
 
 export * from './health';
 export * from './productivity';
+export * from './architecture';
 
 

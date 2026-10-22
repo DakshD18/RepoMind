@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'impact',
     'health',
     'productivity',
+    'architecture',
 ]
 
 MIDDLEWARE = [

@@ -8,6 +8,7 @@ import RepositoryChat from '../pages/RepositoryChat';
 import ImpactAnalysis from '../pages/ImpactAnalysis';
 import HealthDashboard from '../pages/HealthDashboard';
 import ProductivityDashboard from '../pages/ProductivityDashboard';
+import ArchitectureExplorer from '../pages/ArchitectureExplorer';
 import { useAuth } from '../context/AuthContext';
 
 const AppRoutes = () => {
@@ -56,6 +57,16 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <RepositoryChat />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Architecture Intelligence */}
+      <Route
+        path="/repository/:id/architecture"
+        element={
+          <ProtectedRoute>
+            <ArchitectureExplorer />
           </ProtectedRoute>
         }
       />

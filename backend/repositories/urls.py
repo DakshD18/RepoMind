@@ -27,4 +27,7 @@ urlpatterns = [
 
     # Phase 6 — Productivity Intelligence
     path('<int:pk>/productivity/', include('productivity.urls')),
+
+    # Architecture Intelligence
+    path('<int:pk>/architecture/', include('architecture.urls')),
 ]
