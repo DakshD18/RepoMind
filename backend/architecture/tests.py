@@ -255,16 +255,38 @@ class ArchitectureServiceAndAPITests(TestCase):
             # Test focus expansion around core/service.py
             res_focus = self.client.get(f'/api/repositories/{self.repo.id}/architecture/graph/?focus=core/service.py')
             self.assertEqual(res_focus.status_code, status.HTTP_200_OK)
-            focused_nodes = {n['id'] for n in res_focus.data['nodes']}
+            focused_nodes = {n['id']: n for n in res_focus.data['nodes']}
             self.assertIn('core/service.py', focused_nodes)
+            self.assertEqual(focused_nodes['core/service.py']['direction'], 'focus')
             self.assertIn('core/models.py', focused_nodes) # outgoing target
+            self.assertEqual(focused_nodes['core/models.py']['direction'], 'outgoing')
             self.assertIn('api/views.py', focused_nodes)   # incoming dependent
+            self.assertEqual(focused_nodes['api/views.py']['direction'], 'incoming')
 
             # Test limit bounding
             res_limited = self.client.get(f'/api/repositories/{self.repo.id}/architecture/graph/?limit=3')
             self.assertEqual(res_limited.status_code, status.HTTP_200_OK)
             self.assertLessEqual(len(res_limited.data['nodes']), 3)
             self.assertTrue(res_limited.data['is_truncated'])
+
+    def test_architecture_module_graph(self):
+        with self._patch_repo_dir():
+            res = self.client.get(f'/api/repositories/{self.repo.id}/architecture/graph/?view_type=modules')
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
+            data = res.data
+            self.assertIn('modules', data)
+            self.assertIn('edges', data)
+            module_ids = {m['id'] for m in data['modules']}
+            self.assertIn('core', module_ids)
+            self.assertIn('api', module_ids)
+            self.assertIn('frontend', module_ids)
+            # api depends on core
+            api_to_core = next(
+                (e for e in data['edges'] if e['source'] == 'api' and e['target'] == 'core'),
+                None
+            )
+            self.assertIsNotNone(api_to_core)
+            self.assertGreaterEqual(api_to_core['dependency_count'], 1)
 
     # ─── 6. Component Details Tests ───────────────────────────────────────────
 
@@ -322,6 +344,10 @@ class ArchitectureServiceAndAPITests(TestCase):
             self.assertIsNotNone(unres)
             self.assertEqual(unres['file_path'], 'api/views.py')
             self.assertEqual(unres['severity'], 'MEDIUM')
+
+            # Check highly connected files
+            self.assertIn('highly_connected_files', data)
+            self.assertIn('highly_connected_count', data)
 
     # ─── 8. Empty Repository Tests ────────────────────────────────────────────
 

@@ -20,6 +20,7 @@ from .services import (
     get_architecture_overview,
     build_architecture_tree,
     extract_architecture_graph,
+    extract_module_graph,
     extract_node_detail,
     detect_architecture_findings,
 )
@@ -88,6 +89,11 @@ class ArchitectureGraphView(APIView):
             return Response({'error': err}, status=status.HTTP_404_NOT_FOUND)
         if err:
             return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
+
+        view_type = request.query_params.get('view_type', 'files')
+        if view_type == 'modules':
+            data = extract_module_graph(repo, repo_dir)
+            return Response(data, status=status.HTTP_200_OK)
 
         module_filter = request.query_params.get('module')
         search_query = request.query_params.get('search')

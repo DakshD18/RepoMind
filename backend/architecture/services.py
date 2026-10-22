@@ -264,6 +264,149 @@ def build_architecture_tree(
 
 # ─── 3. Architecture Graph ───────────────────────────────────────────────────
 
+def extract_module_graph(
+    repo: Repository,
+    repo_dir: Path,
+) -> Dict[str, Any]:
+    """
+    Extract high-level module architecture graph:
+    Major modules/layers as nodes, verified cross-module dependencies as edges.
+    """
+    graph = build_dependency_graph(repo.id, repo_dir)
+    cycles = _find_all_cycles(graph.forward_graph)
+    circular_files = {f for cycle in cycles for f in cycle}
+    unresolved_files = {u.get('file') for u in graph.unresolved_imports if u.get('file')}
+
+    # Group files into modules based on logical directory structure
+    module_files_map: Dict[str, List[str]] = {}
+    for f in graph.all_files:
+        p = Path(f)
+        parent = str(p.parent)
+        mod_key = parent if parent != '.' else 'root'
+        module_files_map.setdefault(mod_key, []).append(f)
+
+    # Calculate cross-module edges
+    cross_module_connections: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    mod_in_degrees: Dict[str, int] = {m: 0 for m in module_files_map}
+    mod_out_degrees: Dict[str, int] = {m: 0 for m in module_files_map}
+
+    for src_file, edges in graph.forward_graph.items():
+        src_parent = str(Path(src_file).parent)
+        src_mod = src_parent if src_parent != '.' else 'root'
+
+        for edge in edges:
+            tgt_parent = str(Path(edge.target_file).parent)
+            tgt_mod = tgt_parent if tgt_parent != '.' else 'root'
+
+            if src_mod != tgt_mod:
+                pair = (src_mod, tgt_mod)
+                if pair not in cross_module_connections:
+                    cross_module_connections[pair] = {
+                        'count': 0,
+                        'samples': [],
+                        'relationship_types': set(),
+                    }
+                cross_module_connections[pair]['count'] += 1
+                cross_module_connections[pair]['relationship_types'].add(edge.relationship_type)
+                if len(cross_module_connections[pair]['samples']) < 4:
+                    cross_module_connections[pair]['samples'].append({
+                        'source_file': src_file,
+                        'target_file': edge.target_file,
+                        'relationship_type': edge.relationship_type,
+                        'imported_symbols': edge.imported_symbols,
+                        'line_number': edge.line_number,
+                    })
+
+                mod_out_degrees[src_mod] = mod_out_degrees.get(src_mod, 0) + 1
+                mod_in_degrees[tgt_mod] = mod_in_degrees.get(tgt_mod, 0) + 1
+
+    # Detect cross-module cycles
+    mod_adjacency: Dict[str, List[str]] = {}
+    for (s, t) in cross_module_connections:
+        mod_adjacency.setdefault(s, []).append(t)
+
+    mod_cycles = _find_all_cycles(mod_adjacency)
+    circular_modules = {m for cycle in mod_cycles for m in cycle}
+
+    # Helper to classify module architectural role
+    def detect_module_role(mod_path: str, files: List[str]) -> str:
+        mp = mod_path.lower()
+        if 'api' in mp or 'route' in mp or 'endpoint' in mp:
+            return 'API Routes'
+        if 'service' in mp or 'analyzer' in mp:
+            return 'Services'
+        if 'model' in mp or 'schema' in mp:
+            return 'Data Models'
+        if 'component' in mp or 'widget' in mp:
+            return 'UI Components'
+        if 'page' in mp or 'view' in mp:
+            return 'Pages & Views'
+        if 'hook' in mp or 'util' in mp or 'helper' in mp:
+            return 'Utilities & Hooks'
+        if 'config' in mp or 'setting' in mp:
+            return 'Configuration'
+        if 'test' in mp:
+            return 'Tests'
+        if mp.startswith('backend'):
+            return 'Backend Core'
+        if mp.startswith('frontend'):
+            return 'Frontend Core'
+        return 'Module'
+
+    # Build module nodes
+    modules_list = []
+    for mod_path, files in module_files_map.items():
+        name = Path(mod_path).name if mod_path != 'root' else 'Root'
+        languages: Dict[str, int] = {}
+        issues_count = 0
+        for f in files:
+            lang = get_file_language(f)
+            languages[lang] = languages.get(lang, 0) + 1
+            if f in circular_files or f in unresolved_files:
+                issues_count += 1
+
+        modules_list.append({
+            'id': mod_path,
+            'name': name,
+            'path': mod_path,
+            'role': detect_module_role(mod_path, files),
+            'file_count': len(files),
+            'files': files,
+            'languages': languages,
+            'in_degree': mod_in_degrees.get(mod_path, 0),
+            'out_degree': mod_out_degrees.get(mod_path, 0),
+            'total_degree': mod_in_degrees.get(mod_path, 0) + mod_out_degrees.get(mod_path, 0),
+            'is_circular': mod_path in circular_modules,
+            'issues_count': issues_count,
+        })
+
+    # Sort modules by degree and file count
+    modules_list.sort(key=lambda m: (m['total_degree'], m['file_count']), reverse=True)
+
+    # Build module edges
+    edges_list = []
+    for (src, tgt), conn in cross_module_connections.items():
+        edges_list.append({
+            'id': f"{src}->{tgt}",
+            'source': src,
+            'target': tgt,
+            'dependency_count': conn['count'],
+            'relationship_types': list(conn['relationship_types']),
+            'sample_connections': conn['samples'],
+            'is_circular': (tgt, src) in cross_module_connections or (src in circular_modules and tgt in circular_modules),
+        })
+
+    return {
+        'repo_id': repo.id,
+        'revision': graph.revision,
+        'modules': modules_list,
+        'edges': edges_list,
+        'total_modules': len(modules_list),
+        'total_cross_module_edges': len(edges_list),
+        'total_files': len(graph.all_files),
+    }
+
+
 def extract_architecture_graph(
     repo: Repository,
     repo_dir: Path,
@@ -303,14 +446,18 @@ def extract_architecture_graph(
         candidates = [f for f in candidates if classify_component_type(f) == component_type_filter]
 
     # Focus node expansion (if focus_file provided)
+    incoming_of_focus: Set[str] = set()
+    outgoing_of_focus: Set[str] = set()
     if focus_file and focus_file in graph.all_files:
         focused_set = {focus_file}
         # Add 1-hop outgoing
         for edge in graph.forward_graph.get(focus_file, []):
             focused_set.add(edge.target_file)
+            outgoing_of_focus.add(edge.target_file)
         # Add 1-hop incoming
         for dep in graph.reverse_graph.get(focus_file, []):
             focused_set.add(dep.dependent_file)
+            incoming_of_focus.add(dep.dependent_file)
         candidates = [f for f in candidates if f in focused_set]
 
     # Calculate degrees for sorting / ranking
@@ -345,12 +492,19 @@ def extract_architecture_graph(
         in_deg = len(graph.reverse_graph.get(f, []))
         out_deg = len(graph.forward_graph.get(f, []))
 
+        direction = (
+            'focus' if f == focus_file
+            else ('incoming' if f in incoming_of_focus
+                  else ('outgoing' if f in outgoing_of_focus else 'other'))
+        )
+
         nodes.append({
             'id': f,
             'name': Path(f).name,
             'path': f,
             'type': 'file',
             'component_type': classify_component_type(f),
+            'direction': direction,
             'language': format_language_name(meta.language if meta else None, f),
             'line_count': meta.line_count if meta else 0,
             'in_degree': in_deg,
@@ -557,14 +711,43 @@ def detect_architecture_findings(repo: Repository, repo_dir: Path) -> Dict[str, 
             'recommendation': "Verify if this is an external third-party package or if the local relative/alias import path is incorrect.",
         })
 
+    # Detect highly connected files (hub components)
+    degrees: Dict[str, Tuple[int, int, int]] = {}
+    for f in graph.all_files:
+        in_deg = len(graph.reverse_graph.get(f, []))
+        out_deg = len(graph.forward_graph.get(f, []))
+        degrees[f] = (in_deg, out_deg, in_deg + out_deg)
+
+    highly_connected_findings = []
+    sorted_hubs = sorted(
+        [item for item in degrees.items() if item[1][2] >= 3],
+        key=lambda x: x[1][2],
+        reverse=True,
+    )
+    for idx, (f, (in_deg, out_deg, tot)) in enumerate(sorted_hubs, start=1):
+        highly_connected_findings.append({
+            'id': f"hub-{idx}",
+            'type': 'highly_connected',
+            'severity': 'MEDIUM' if tot >= 6 else 'LOW',
+            'title': f"High Coupling Hub: {Path(f).name}",
+            'file_path': f,
+            'in_degree': in_deg,
+            'out_degree': out_deg,
+            'total_degree': tot,
+            'description': f"File '{f}' connects to {tot} other components ({in_deg} incoming, {out_deg} outgoing).",
+            'recommendation': "High coupling makes future changes riskier. Consider extracting shared utilities or using dependency inversion.",
+        })
+
     return {
         'repo_id': repo.id,
         'revision': graph.revision,
-        'total_findings': len(circular_findings) + len(unresolved_findings),
+        'total_findings': len(circular_findings) + len(unresolved_findings) + len(highly_connected_findings),
         'circular_dependencies': circular_findings,
         'circular_count': len(circular_findings),
         'circular_files_count': len(affected_circular_files),
         'unresolved_imports': unresolved_findings,
         'unresolved_count': len(unresolved_findings),
+        'highly_connected_files': highly_connected_findings,
+        'highly_connected_count': len(highly_connected_findings),
         'syntax_errors': graph.syntax_errors,
     }

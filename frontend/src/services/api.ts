@@ -24,6 +24,7 @@ import type {
   ArchitectureOverview,
   ArchitectureTreeResponse,
   ArchitectureGraphResponse,
+  ArchitectureModuleGraphResponse,
   ArchitectureNodeDetail,
   ArchitectureFindingsResponse,
 } from '../types';
@@ -391,9 +392,19 @@ export const getArchitectureGraph = (
     relationship_type?: string;
     focus?: string;
     limit?: number;
+    view_type?: 'files' | 'modules';
   }
 ): Promise<ArchitectureGraphResponse> =>
   api.get(`/repositories/${repoId}/architecture/graph/`, { params }).then((res) => res.data);
+
+export const getArchitectureModuleGraph = (
+  repoId: number | string
+): Promise<ArchitectureModuleGraphResponse> =>
+  api
+    .get(`/repositories/${repoId}/architecture/graph/`, {
+      params: { view_type: 'modules' },
+    })
+    .then((res) => res.data);
 
 export const getArchitectureNodeDetail = (
   repoId: number | string,

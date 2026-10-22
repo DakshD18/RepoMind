@@ -46,6 +46,7 @@ export interface ArchitectureGraphNode {
   path: string;
   type: 'file';
   component_type: string;
+  direction?: 'focus' | 'incoming' | 'outgoing' | 'other';
   language: string;
   line_count: number;
   in_degree: number;
@@ -77,6 +78,47 @@ export interface ArchitectureGraphResponse {
   total_edges_in_graph: number;
   edges_returned: number;
   is_truncated: boolean;
+}
+
+export interface ArchitectureModuleNode {
+  id: string;
+  name: string;
+  path: string;
+  role: string;
+  file_count: number;
+  files: string[];
+  languages: Record<string, number>;
+  in_degree: number;
+  out_degree: number;
+  total_degree: number;
+  is_circular: boolean;
+  issues_count: number;
+}
+
+export interface ArchitectureModuleEdge {
+  id: string;
+  source: string;
+  target: string;
+  dependency_count: number;
+  relationship_types: string[];
+  sample_connections: Array<{
+    source_file: string;
+    target_file: string;
+    relationship_type: string;
+    imported_symbols: string[];
+    line_number: number;
+  }>;
+  is_circular: boolean;
+}
+
+export interface ArchitectureModuleGraphResponse {
+  repo_id: number;
+  revision: string;
+  modules: ArchitectureModuleNode[];
+  edges: ArchitectureModuleEdge[];
+  total_modules: number;
+  total_cross_module_edges: number;
+  total_files: number;
 }
 
 export interface DependencyItem {
@@ -146,6 +188,19 @@ export interface UnresolvedFinding {
   recommendation: string;
 }
 
+export interface HighlyConnectedFinding {
+  id: string;
+  type: 'highly_connected';
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  title: string;
+  file_path: string;
+  in_degree: number;
+  out_degree: number;
+  total_degree: number;
+  description: string;
+  recommendation: string;
+}
+
 export interface ArchitectureFindingsResponse {
   repo_id: number;
   revision: string;
@@ -155,5 +210,7 @@ export interface ArchitectureFindingsResponse {
   circular_files_count: number;
   unresolved_imports: UnresolvedFinding[];
   unresolved_count: number;
+  highly_connected_files: HighlyConnectedFinding[];
+  highly_connected_count: number;
   syntax_errors: any[];
 }
