@@ -21,11 +21,15 @@ export const LoginPage: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const codeHandledRef = React.useRef<string | null>(null);
 
   // Handle GitHub OAuth Redirect Code if present in URL (?code=...)
   useEffect(() => {
     const code = searchParams.get('code');
-    if (code) {
+    if (code && codeHandledRef.current !== code) {
+      codeHandledRef.current = code;
+      // Clean up code from URL so re-renders / reloads do not reuse the single-use code
+      window.history.replaceState({}, document.title, window.location.pathname);
       handleGitHubCode(code);
     }
   }, [searchParams]);

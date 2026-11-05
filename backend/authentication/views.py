@@ -51,6 +51,11 @@ class GoogleAuthView(APIView):
                 {'error': f'Invalid Google token: {str(e)}'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to verify Google token: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         email = idinfo.get('email')
         first_name = idinfo.get('given_name', '')
@@ -62,20 +67,24 @@ class GoogleAuthView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create or retrieve the user
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                'username': email,
-                'first_name': first_name,
-                'last_name': last_name,
-            }
-        )
-
-        # Update name if user already existed
-        if not created:
-            user.first_name = first_name or user.first_name
-            user.last_name = last_name or user.last_name
+        # Create or retrieve the user safely
+        user = User.objects.filter(email=email).first()
+        if not user:
+            user = User.objects.filter(username=email).first()
+        if not user:
+            user = User.objects.create(
+                username=email,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+            )
+        else:
+            if first_name and not user.first_name:
+                user.first_name = first_name
+            if last_name and not user.last_name:
+                user.last_name = last_name
+            if not user.email:
+                user.email = email
             user.save()
 
         tokens = get_tokens_for_user(user)
@@ -104,15 +113,31 @@ class GitHubAuthView(APIView):
             )
 
         # Step 1: Exchange code for GitHub access token
-        token_response = requests.post(
-            'https://github.com/login/oauth/access_token',
-            data={
-                'client_id': settings.GITHUB_CLIENT_ID,
-                'client_secret': settings.GITHUB_CLIENT_SECRET,
-                'code': code,
-            },
-            headers={'Accept': 'application/json'}
-        )
+        try:
+            token_response = requests.post(
+                'https://github.com/login/oauth/access_token',
+                data={
+                    'client_id': settings.GITHUB_CLIENT_ID,
+                    'client_secret': settings.GITHUB_CLIENT_SECRET,
+                    'code': code,
+                },
+                headers={
+                    'Accept': 'application/json',
+                    'User-Agent': 'RepoMind-App',
+                },
+                timeout=15,
+            )
+        except requests.RequestException as e:
+            return Response(
+                {'error': f'Failed to reach GitHub authorization server: {str(e)}'},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+        if token_response.status_code != 200:
+            return Response(
+                {'error': f'GitHub token exchange failed with status {token_response.status_code}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         token_data = token_response.json()
         access_token = token_data.get('access_token')
@@ -124,15 +149,28 @@ class GitHubAuthView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'User-Agent': 'RepoMind-App',
+            'Accept': 'application/json',
+        }
+
         # Step 2: Fetch user profile from GitHub
-        user_response = requests.get(
-            'https://api.github.com/user',
-            headers={'Authorization': f'token {access_token}'}
-        )
+        try:
+            user_response = requests.get(
+                'https://api.github.com/user',
+                headers=headers,
+                timeout=15,
+            )
+        except requests.RequestException as e:
+            return Response(
+                {'error': f'Failed to fetch user profile from GitHub: {str(e)}'},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
 
         if user_response.status_code != 200:
             return Response(
-                {'error': 'Failed to fetch user profile from GitHub.'},
+                {'error': f'Failed to fetch user profile from GitHub (HTTP {user_response.status_code}).'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -145,31 +183,41 @@ class GitHubAuthView(APIView):
 
         # Step 3: Fetch verified primary email if profile email is private
         if not email:
-            emails_response = requests.get(
-                'https://api.github.com/user/emails',
-                headers={'Authorization': f'token {access_token}'}
-            )
-            if emails_response.status_code == 200:
-                emails = emails_response.json()
-                primary_email = next((e['email'] for e in emails if e.get('primary') and e.get('verified')), None)
-                email = primary_email or (emails[0]['email'] if emails else None)
+            try:
+                emails_response = requests.get(
+                    'https://api.github.com/user/emails',
+                    headers=headers,
+                    timeout=15,
+                )
+                if emails_response.status_code == 200:
+                    emails = emails_response.json()
+                    if isinstance(emails, list):
+                        primary_email = next((e['email'] for e in emails if e.get('primary') and e.get('verified')), None)
+                        email = primary_email or (emails[0]['email'] if emails else None)
+            except requests.RequestException:
+                pass
 
         if not email:
             email = f"{github_username}@users.noreply.github.com"
 
-        # Step 4: Create or retrieve User record
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                'username': email,
-                'first_name': first_name,
-                'last_name': last_name,
-            }
-        )
-
-        if not created:
-            user.first_name = first_name or user.first_name
-            user.last_name = last_name or user.last_name
+        # Step 4: Create or retrieve User record safely
+        user = User.objects.filter(email=email).first()
+        if not user:
+            user = User.objects.filter(username=email).first()
+        if not user:
+            user = User.objects.create(
+                username=email,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+            )
+        else:
+            if first_name and not user.first_name:
+                user.first_name = first_name
+            if last_name and not user.last_name:
+                user.last_name = last_name
+            if not user.email:
+                user.email = email
             user.save()
 
         tokens = get_tokens_for_user(user)
