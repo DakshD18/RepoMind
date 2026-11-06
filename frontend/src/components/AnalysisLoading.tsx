@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, CircularProgress, Container } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { RepoMindLogo } from './RepoMindLogo';
 
 interface AnalysisLoadingProps {
   repoUrl: string;
@@ -141,32 +141,8 @@ export const AnalysisLoading: React.FC<AnalysisLoadingProps> = ({ repoUrl }) => 
       {/* Loading content container */}
       <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
         {/* Glowing Logo Icon */}
-        <Box
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 1.5,
-            mb: 3,
-          }}
-        >
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: '10px',
-              background: '#111111',
-              border: '1px solid rgba(255, 210, 31, 0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 25px rgba(255, 210, 31, 0.2)',
-            }}
-          >
-            <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 22 }} />
-          </Box>
-          <Typography sx={{ fontWeight: 800, fontSize: '1.2rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
-            RepoMind
-          </Typography>
+        <Box sx={{ mb: 3 }}>
+          <RepoMindLogo size={46} withBox={true} showText={true} />
         </Box>
 
         {/* PROCESSING REPOSITORY LABEL */}

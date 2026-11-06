@@ -497,22 +497,34 @@ export const Dashboard: React.FC = () => {
             }}
           >
             {/* Central Glowing Globe Graphic */}
+            {/* RepoMind Empty State Badge */}
             <Box
               sx={{
-                width: 110,
-                height: 110,
+                width: 90,
+                height: 90,
                 mx: 'auto',
                 mb: 3,
-                borderRadius: '50%',
-                background: 'rgba(20, 20, 28, 0.9)',
-                border: '1px solid rgba(255, 210, 31, 0.35)',
+                borderRadius: '22px',
+                background: 'linear-gradient(135deg, #181824 0%, #0d0d12 100%)',
+                border: '1px solid rgba(255, 210, 31, 0.45)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 45px rgba(255, 210, 31, 0.15)',
+                boxShadow: '0 0 45px rgba(255, 210, 31, 0.22)',
+                p: 1.8,
               }}
             >
-              <AutoAwesomeIcon sx={{ fontSize: 42, color: '#ffd21f' }} />
+              <Box
+                component="img"
+                src="/repomind-mark-transparent.png"
+                alt="RepoMind"
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 0 8px rgba(255, 210, 31, 0.6))',
+                }}
+              />
             </Box>
 
             <Typography variant="h5" sx={{ fontWeight: 800, color: '#ffffff', mb: 1 }}>

@@ -21,6 +21,7 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import { googleLogin } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { HeroPreviewVisual } from '../components/HeroPreviewVisual';
+import { RepoMindLogo } from '../components/RepoMindLogo';
 
 export const LandingPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
@@ -119,42 +120,11 @@ export const LandingPage: React.FC = () => {
         <Container maxWidth="lg">
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* Logo */}
-            <Box
+            <RepoMindLogo
+              size={38}
+              withBox={true}
               onClick={() => navigate('/')}
-              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer' }}
-            >
-              <Box
-                sx={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #181822 0%, #101016 100%)',
-                  border: '1px solid rgba(255, 210, 31, 0.45)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 20px rgba(255, 210, 31, 0.25)',
-                }}
-              >
-                <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 20 }} />
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                <Typography variant="h6" sx={{ fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', fontSize: '1.2rem' }}>
-                  RepoMind
-                </Typography>
-                <Box
-                  component="span"
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: '#ffd21f',
-                    boxShadow: '0 0 8px #ffd21f',
-                    display: 'inline-block',
-                  }}
-                />
-              </Box>
-            </Box>
+            />
 
             {/* Navigation links */}
             <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 4 }}>
@@ -837,24 +807,8 @@ export const LandingPage: React.FC = () => {
         <Box component="footer" sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', pt: 8, pb: 6 }}>
           <Grid container spacing={6}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '8px',
-                    background: '#121218',
-                    border: '1px solid rgba(255, 210, 31, 0.4)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 18 }} />
-                </Box>
-                <Typography sx={{ fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', fontSize: '1.15rem' }}>
-                  RepoMind
-                </Typography>
+              <Box sx={{ mb: 2 }}>
+                <RepoMindLogo size={32} withBox={true} />
               </Box>
               <Typography sx={{ color: '#94a3b8', fontSize: '0.875rem', lineHeight: 1.65, maxWidth: 280 }}>
                 The AI-powered codebase intelligence platform for modern engineering teams.

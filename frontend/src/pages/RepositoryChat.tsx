@@ -939,23 +939,33 @@ export const RepositoryChat: React.FC = () => {
                   py: 4,
                 }}
               >
-                {/* Center Glowing Sparkle Badge */}
+                {/* Center Glowing RepoMind Mark */}
                 <Box
                   sx={{
-                    width: 54,
-                    height: 54,
-                    borderRadius: '14px',
-                    background: 'rgba(255, 210, 31, 0.12)',
-                    border: '1px solid rgba(255, 210, 31, 0.4)',
-                    boxShadow: '0 0 25px rgba(255, 210, 31, 0.22)',
+                    width: 58,
+                    height: 58,
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #181824 0%, #0d0d12 100%)',
+                    border: '1px solid rgba(255, 210, 31, 0.45)',
+                    boxShadow: '0 0 28px rgba(255, 210, 31, 0.25)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#FFD21F',
+                    p: 1.1,
                     mb: 2.2,
                   }}
                 >
-                  <AutoAwesomeIcon sx={{ fontSize: '1.8rem' }} />
+                  <Box
+                    component="img"
+                    src="/repomind-mark-transparent.png"
+                    alt="RepoMind"
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 6px rgba(255, 210, 31, 0.6))',
+                    }}
+                  />
                 </Box>
 
                 <Typography

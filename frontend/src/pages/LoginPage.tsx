@@ -3,10 +3,10 @@ import { Box, Card, Typography, TextField, Button, Divider, Container } from '@m
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import toast from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { RepoMindLogo } from '../components/RepoMindLogo';
 import { googleLogin, githubLogin, emailLogin, emailRegister } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -189,27 +189,38 @@ export const LoginPage: React.FC = () => {
         >
           {/* Logo Header */}
           <Box sx={{ textAlign: 'center', mb: 3.5 }}>
-            <Box
+            <Box sx={{ display: 'inline-flex', justifyContent: 'center', mb: 1.5 }}>
+              <RepoMindLogo size={52} withBox={true} showText={false} />
+            </Box>
+            <Typography
+              component="div"
               sx={{
-                width: 48,
-                height: 48,
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #181824 0%, #101016 100%)',
-                border: '1px solid rgba(255, 210, 31, 0.45)',
-                display: 'inline-flex',
-                alignItems: 'center',
+                fontWeight: 900,
+                fontSize: '1.6rem',
+                letterSpacing: '-0.03em',
+                display: 'flex',
+                alignItems: 'baseline',
                 justifyContent: 'center',
-                boxShadow: '0 0 24px rgba(255, 210, 31, 0.25)',
-                mb: 2,
+                mb: 0.5,
               }}
             >
-              <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 24 }} />
-            </Box>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: '#ffffff', letterSpacing: '-0.025em', mb: 0.6 }}>
-              {isSignUp ? 'Create your account' : 'Welcome back'}
+              <span style={{ color: '#ffffff' }}>Repo</span>
+              <span style={{ color: '#FFD21F' }}>Mind</span>
+              <Box
+                component="span"
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#FFD21F',
+                  boxShadow: '0 0 8px #FFD21F',
+                  display: 'inline-block',
+                  ml: 0.6,
+                }}
+              />
             </Typography>
-            <Typography sx={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-              {isSignUp ? 'Sign up to start analysing repos with AI' : 'Sign in to continue to RepoMind'}
+            <Typography sx={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+              {isSignUp ? 'Create your account to start analysing repos with AI' : 'Sign in to continue to RepoMind'}
             </Typography>
           </Box>
 

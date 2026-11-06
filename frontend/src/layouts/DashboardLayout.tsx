@@ -33,11 +33,11 @@ import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import { useAuth } from '../context/AuthContext';
+import { RepoMindLogo } from '../components/RepoMindLogo';
 
 const EXPANDED_DRAWER_WIDTH = 260;
 const COLLAPSED_DRAWER_WIDTH = 72;
@@ -186,57 +186,19 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           sx={{
             display: 'flex',
             alignItems: 'center',
-            gap: 1.5,
             cursor: 'pointer',
             overflow: 'hidden',
           }}
         >
           <Tooltip title={collapsed ? 'RepoMind Dashboard' : ''} placement="right">
-            <Box
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #181824 0%, #101016 100%)',
-                border: '1px solid rgba(255, 210, 31, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 16px rgba(255, 210, 31, 0.18)',
-                flexShrink: 0,
-              }}
-            >
-              <AutoAwesomeIcon sx={{ color: '#ffd21f', fontSize: 18 }} />
-            </Box>
-          </Tooltip>
-
-          {!collapsed && (
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 800,
-                  fontSize: '1.2rem',
-                  letterSpacing: '-0.02em',
-                  color: '#ffffff',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                RepoMind
-              </Typography>
-              <Box
-                component="span"
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: '#ffd21f',
-                  boxShadow: '0 0 8px #ffd21f',
-                  display: 'inline-block',
-                }}
+            <div>
+              <RepoMindLogo
+                size={34}
+                showText={!collapsed}
+                withBox={true}
               />
-            </Box>
-          )}
+            </div>
+          </Tooltip>
         </Box>
 
         {/* Header collapse button on desktop when expanded */}
