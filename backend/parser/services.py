@@ -4,6 +4,7 @@ Parser Services — Core logic for cloning repositories and extracting metadata.
 
 import os
 import shutil
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 import git
@@ -47,17 +48,44 @@ SKIP_DIRS = {
 }
 
 
-def clone_repository(repo_url: str, target_dir: str) -> git.Repo:
+def clone_repository(repo_url: str, target_dir: str, token: str | None = None) -> git.Repo:
     """
-    Clones a public GitHub repository to the given target directory.
+    Clones a GitHub repository to the given target directory.
     Uses a shallow clone (depth=1) for performance.
     Removes the existing directory first if it already exists.
+    Supports private repositories if a GitHub token is provided or set in environment (GITHUB_TOKEN / GITHUB_PAT).
     """
     if os.path.exists(target_dir):
         shutil.rmtree(target_dir)
 
-    repo = git.Repo.clone_from(repo_url, target_dir, depth=1)
-    return repo
+    github_token = token or os.getenv('GITHUB_TOKEN') or os.getenv('GITHUB_PAT')
+    clone_url = repo_url
+    if github_token and 'github.com' in repo_url:
+        clean_url = re.sub(r'https://[^@]+@github\.com/', 'https://github.com/', repo_url)
+        clone_url = re.sub(r'^https://github\.com/', f'https://{github_token}@github.com/', clean_url)
+
+    # Disable terminal prompt so Git fails immediately instead of hanging or prompting for credentials
+    env = os.environ.copy()
+    env['GIT_TERMINAL_PROMPT'] = '0'
+
+    try:
+        repo = git.Repo.clone_from(clone_url, target_dir, depth=1, env=env)
+        return repo
+    except git.exc.GitCommandError as e:
+        error_msg = str(e)
+        if any(term in error_msg.lower() for term in [
+            'could not read username',
+            'authentication failed',
+            'repository not found',
+            'not found',
+            'terminal prompts disabled',
+            'device or address',
+        ]):
+            raise ValueError(
+                "This repository appears to be private or does not exist. "
+                "RepoMind analyzes public GitHub repositories, or requires a GITHUB_TOKEN configured in your environment with repository access."
+            ) from e
+        raise ValueError(f"Git clone failed: {error_msg}") from e
 
 
 def _time_ago(dt: datetime) -> str:

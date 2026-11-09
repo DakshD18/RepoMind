@@ -85,6 +85,14 @@ class AnalyseRepositoryView(APIView):
             repo_record.status = Repository.Status.SUCCESS
             repo_record.save()
 
+        except ValueError as e:
+            repo_record.status = Repository.Status.FAILED
+            repo_record.error_message = str(e)
+            repo_record.save()
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             repo_record.status = Repository.Status.FAILED
             repo_record.error_message = str(e)
