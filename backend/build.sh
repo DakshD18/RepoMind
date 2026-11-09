@@ -13,3 +13,4 @@ echo "==> Running database migrations..."
 python manage.py migrate --no-input
 
 echo "==> Build complete!"
+
