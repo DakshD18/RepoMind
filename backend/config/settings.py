@@ -5,6 +5,9 @@ Django settings for RepoMind project.
 from pathlib import Path
 from datetime import timedelta
 import os
+import re
+import warnings
+from urllib.parse import quote, unquote
 import dj_database_url
 from dotenv import load_dotenv
 
@@ -87,20 +90,48 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
+def _sanitize_database_url(url: str) -> str:
+    """
+    Sanitize and URL-encode credentials in a database URL so special characters
+    or inadvertent literal brackets [password] do not raise ParseError.
+    """
+    if not url:
+        return ''
+    cleaned = url.strip().strip('"').strip("'")
+    match = re.match(r'^(postgres(?:ql)?://)([^:]+):(.*)@([^/@:]+(?::\d+)?(?:/.*)?)$', cleaned)
+    if match:
+        prefix, user, raw_password, rest = match.groups()
+        if raw_password.startswith('[') and raw_password.endswith(']'):
+            raw_password = raw_password[1:-1]
+        encoded_password = quote(unquote(raw_password), safe='')
+        return f'{prefix}{user}:{encoded_password}@{rest}'
+    return cleaned
+
+
 # Database
 # Priority 1: DATABASE_URL (Standard for Supabase, Neon, Render, Railway)
 DATABASE_URL = os.getenv('DATABASE_URL')
 _DB_NAME = os.getenv('DB_NAME', '')
 
 if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            conn_health_checks=True,
-            ssl_require=True,
-        )
-    }
+    try:
+        sanitized_db_url = _sanitize_database_url(DATABASE_URL)
+        DATABASES = {
+            'default': dj_database_url.config(
+                default=sanitized_db_url,
+                conn_max_age=600,
+                conn_health_checks=True,
+                ssl_require=True,
+            )
+        }
+    except Exception as e:
+        warnings.warn(f"Failed to parse DATABASE_URL ({e}). Falling back to SQLite.")
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 elif _DB_NAME:
     DATABASES = {
         'default': {
