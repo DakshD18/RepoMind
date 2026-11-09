@@ -26,6 +26,7 @@ class RepositorySerializer(serializers.ModelSerializer):
 
 class AnalyseRepositorySerializer(serializers.Serializer):
     url = serializers.URLField()
+    token = serializers.CharField(required=False, allow_blank=True, default='')
 
     def validate_url(self, value):
         """Ensure the URL is a valid GitHub repository URL."""
@@ -34,3 +35,7 @@ class AnalyseRepositorySerializer(serializers.Serializer):
                 'Only GitHub repository URLs are supported at this time.'
             )
         return value.rstrip('/')
+
+    def validate_token(self, value):
+        """Sanitize personal access token."""
+        return value.strip() if value else ''

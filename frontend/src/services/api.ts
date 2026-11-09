@@ -161,8 +161,8 @@ export const getCurrentUser = () =>
   api.get('/auth/me/').then((res) => res.data);
 
 // Repository endpoints
-export const analyseRepository = (url: string): Promise<Repository> =>
-  api.post('/repositories/analyse/', { url }).then((res) => res.data);
+export const analyseRepository = (url: string, token?: string): Promise<Repository> =>
+  api.post('/repositories/analyse/', { url, token: token ? token.trim() : undefined }).then((res) => res.data);
 
 export const getRepositories = (): Promise<Repository[]> =>
   api.get('/repositories/').then((res) => res.data);

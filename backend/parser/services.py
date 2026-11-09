@@ -58,10 +58,12 @@ def clone_repository(repo_url: str, target_dir: str, token: str | None = None) -
     if os.path.exists(target_dir):
         shutil.rmtree(target_dir)
 
-    github_token = token or os.getenv('GITHUB_TOKEN') or os.getenv('GITHUB_PAT')
-    clone_url = repo_url
-    if github_token and 'github.com' in repo_url:
-        clean_url = re.sub(r'https://[^@]+@github\.com/', 'https://github.com/', repo_url)
+    raw_token = token or os.getenv('GITHUB_TOKEN') or os.getenv('GITHUB_PAT')
+    github_token = raw_token.strip() if raw_token else None
+
+    clone_url = repo_url.strip()
+    if github_token and 'github.com' in clone_url:
+        clean_url = re.sub(r'https://[^@]+@github\.com/', 'https://github.com/', clone_url)
         clone_url = re.sub(r'^https://github\.com/', f'https://{github_token}@github.com/', clean_url)
 
     # Disable terminal prompt so Git fails immediately instead of hanging or prompting for credentials
@@ -73,18 +75,30 @@ def clone_repository(repo_url: str, target_dir: str, token: str | None = None) -
         return repo
     except git.exc.GitCommandError as e:
         error_msg = str(e)
-        if any(term in error_msg.lower() for term in [
+        # Scrub token from error message so it is never exposed in logs or user toasts
+        if github_token:
+            error_msg = error_msg.replace(github_token, '***')
+
+        lower_err = error_msg.lower()
+        if any(term in lower_err for term in [
             'could not read username',
             'authentication failed',
             'repository not found',
             'not found',
             'terminal prompts disabled',
             'device or address',
+            'bad credentials',
         ]):
-            raise ValueError(
-                "This repository appears to be private or does not exist. "
-                "RepoMind analyzes public GitHub repositories, or requires a GITHUB_TOKEN configured in your environment with repository access."
-            ) from e
+            if github_token:
+                raise ValueError(
+                    "Authentication failed. Please verify that your GitHub Personal Access Token is valid "
+                    "and has read permissions ('repo' or 'contents:read') for this repository."
+                ) from e
+            else:
+                raise ValueError(
+                    "This repository appears to be private or does not exist. "
+                    "If this is a private repository, please expand the 'Private Repository' field and provide a GitHub Personal Access Token."
+                ) from e
         raise ValueError(f"Git clone failed: {error_msg}") from e
 
 

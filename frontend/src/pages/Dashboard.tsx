@@ -17,6 +17,10 @@ import {
   DialogContentText,
   DialogActions,
   Tooltip,
+  Collapse,
+  FormControlLabel,
+  Checkbox,
+  Link,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -35,6 +39,11 @@ import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import StorageIcon from '@mui/icons-material/Storage';
 import SpeedIcon from '@mui/icons-material/Speed';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
 
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { AnalysisLoading } from '../components/AnalysisLoading';
@@ -49,6 +58,7 @@ const schema = z.object({
     .refine((val) => val.includes('github.com'), {
       message: 'Only GitHub URLs are supported.',
     }),
+  token: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -145,17 +155,35 @@ export const Dashboard: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [repoToDelete, setRepoToDelete] = useState<Repository | null>(null);
 
+  // Private repository & token support
+  const savedToken = localStorage.getItem('repomind_github_token') || '';
+  const [isPrivate, setIsPrivate] = useState<boolean>(!!savedToken);
+  const [showToken, setShowToken] = useState<boolean>(false);
+  const [rememberToken, setRememberToken] = useState<boolean>(!!savedToken);
+  const [tokenValue, setTokenValue] = useState<string>(savedToken);
+
   const {
     register,
     handleSubmit,
     setValue,
-    reset,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      url: '',
+      token: savedToken,
+    },
+  });
 
   useEffect(() => {
     fetchRepositories();
   }, []);
+
+  useEffect(() => {
+    if (savedToken) {
+      setValue('token', savedToken);
+    }
+  }, [savedToken, setValue]);
 
   const fetchRepositories = async () => {
     try {
@@ -171,9 +199,17 @@ export const Dashboard: React.FC = () => {
     setAnalysingUrl(data.url);
 
     try {
-      const repo = await analyseRepository(data.url);
+      const activeToken = isPrivate ? (data.token?.trim() || tokenValue.trim()) : undefined;
+
+      if (isPrivate && rememberToken && activeToken) {
+        localStorage.setItem('repomind_github_token', activeToken);
+      } else if (!rememberToken) {
+        localStorage.removeItem('repomind_github_token');
+      }
+
+      const repo = await analyseRepository(data.url, activeToken);
       toast.success(`Successfully analysed ${repo.owner}/${repo.name}!`);
-      reset();
+      setValue('url', '');
       await fetchRepositories();
       navigate(`/repository/${repo.id}`);
     } catch (error: any) {
@@ -376,82 +412,238 @@ export const Dashboard: React.FC = () => {
               Analyse a Repository
             </Typography>
             <Typography sx={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: 640, mb: 3.2, lineHeight: 1.6 }}>
-              Enter any public GitHub repository URL to generate instant AST architecture maps, commit memory graphs, and an AI that knows every line of the codebase.
+              Enter any public or private GitHub repository URL to generate instant AST architecture maps, commit memory graphs, and an AI that knows every line of the codebase.
             </Typography>
 
             {/* URL Input Form */}
             <Box
               component="form"
               onSubmit={handleSubmit(onSubmit)}
-              sx={{ display: 'flex', gap: 1.5, flexDirection: { xs: 'column', sm: 'row' }, mb: 2.5 }}
+              sx={{ mb: 2.5 }}
             >
-              <Box
-                sx={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: 'rgba(10, 10, 14, 0.85)',
-                  border: errors.url ? '1px solid #ef5350' : '1px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: '12px',
-                  px: 2.2,
-                  py: 0.6,
-                  transition: 'all 0.2s ease',
-                  '&:focus-within': {
-                    borderColor: '#ffd21f',
-                    boxShadow: '0 0 20px rgba(255, 210, 31, 0.2)',
-                  },
-                }}
-              >
-                <GitHubIcon sx={{ color: '#94a3b8', mr: 1.5, fontSize: 20 }} />
-                <TextField
-                  {...register('url')}
-                  fullWidth
-                  variant="standard"
-                  placeholder="https://github.com/facebook/react"
-                  disabled={isAnalysing}
-                  slotProps={{
-                    input: {
-                      disableUnderline: true,
-                      sx: {
-                        color: '#ffffff',
-                        fontSize: '0.9rem',
-                        '& input::placeholder': { color: '#64748b', opacity: 1 },
-                      },
+              <Box sx={{ display: 'flex', gap: 1.5, flexDirection: { xs: 'column', sm: 'row' }, mb: 1.5 }}>
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: 'rgba(10, 10, 14, 0.85)',
+                    border: errors.url ? '1px solid #ef5350' : '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '12px',
+                    px: 2.2,
+                    py: 0.6,
+                    transition: 'all 0.2s ease',
+                    '&:focus-within': {
+                      borderColor: '#ffd21f',
+                      boxShadow: '0 0 20px rgba(255, 210, 31, 0.2)',
                     },
                   }}
-                />
+                >
+                  <GitHubIcon sx={{ color: '#94a3b8', mr: 1.5, fontSize: 20 }} />
+                  <TextField
+                    {...register('url')}
+                    fullWidth
+                    variant="standard"
+                    placeholder="https://github.com/facebook/react or https://github.com/user/private-repo"
+                    disabled={isAnalysing}
+                    slotProps={{
+                      input: {
+                        disableUnderline: true,
+                        sx: {
+                          color: '#ffffff',
+                          fontSize: '0.9rem',
+                          '& input::placeholder': { color: '#64748b', opacity: 1 },
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={isAnalysing}
+                  endIcon={<ArrowForwardIcon fontSize="small" />}
+                  sx={{
+                    height: 48,
+                    px: 3.8,
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #ffd21f 0%, #f59e0b 100%)',
+                    color: '#050507',
+                    fontWeight: 800,
+                    textTransform: 'none',
+                    fontSize: '0.9rem',
+                    boxShadow: '0 4px 18px rgba(255, 210, 31, 0.3)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #ffe033 0%, #fbbf24 100%)',
+                      boxShadow: '0 6px 24px rgba(255, 210, 31, 0.45)',
+                    },
+                    '&:disabled': { opacity: 0.5 },
+                  }}
+                >
+                  Analyse
+                </Button>
               </Box>
 
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={isAnalysing}
-                endIcon={<ArrowForwardIcon fontSize="small" />}
-                sx={{
-                  height: 48,
-                  px: 3.8,
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #ffd21f 0%, #f59e0b 100%)',
-                  color: '#050507',
-                  fontWeight: 800,
-                  textTransform: 'none',
-                  fontSize: '0.9rem',
-                  boxShadow: '0 4px 18px rgba(255, 210, 31, 0.3)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #ffe033 0%, #fbbf24 100%)',
-                    boxShadow: '0 6px 24px rgba(255, 210, 31, 0.45)',
-                  },
-                  '&:disabled': { opacity: 0.5 },
-                }}
-              >
-                Analyse
-              </Button>
+              {errors.url && (
+                <Typography sx={{ color: '#ef5350', fontSize: '0.8rem', mt: -0.5, mb: 1.5, ml: 1 }}>
+                  {errors.url.message}
+                </Typography>
+              )}
+
+              {/* Private Repo Toggle Header */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+                <Button
+                  size="small"
+                  onClick={() => setIsPrivate((prev) => !prev)}
+                  startIcon={<LockOutlinedIcon sx={{ fontSize: '14px !important', color: isPrivate ? '#ffd21f !important' : '#94a3b8 !important' }} />}
+                  sx={{
+                    color: isPrivate ? '#ffd21f' : '#94a3b8',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    px: 1.4,
+                    py: 0.5,
+                    borderRadius: '8px',
+                    background: isPrivate ? 'rgba(255, 210, 31, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+                    border: isPrivate ? '1px solid rgba(255, 210, 31, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      color: '#ffd21f',
+                      background: 'rgba(255, 210, 31, 0.15)',
+                      borderColor: 'rgba(255, 210, 31, 0.5)',
+                    },
+                  }}
+                >
+                  {isPrivate ? 'Private Repository: Token Active' : 'Scanning a Private Repository? Add GitHub Token'}
+                </Button>
+
+                {isPrivate && (
+                  <Link
+                    href="https://github.com/settings/tokens/new?scopes=repo&description=RepoMind"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      color: '#94a3b8',
+                      fontSize: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      textDecoration: 'none',
+                      transition: 'color 0.15s ease',
+                      '&:hover': { color: '#ffd21f', textDecoration: 'underline' },
+                    }}
+                  >
+                    Generate token on GitHub <OpenInNewIcon sx={{ fontSize: 13 }} />
+                  </Link>
+                )}
+              </Box>
+
+              {/* Collapsible Private Token Panel */}
+              <Collapse in={isPrivate} timeout="auto" unmountOnExit>
+                <Box
+                  sx={{
+                    p: { xs: 2, sm: 2.5 },
+                    mt: 1,
+                    mb: 1.5,
+                    borderRadius: '12px',
+                    background: 'rgba(12, 12, 18, 0.95)',
+                    border: '1px solid rgba(255, 210, 31, 0.25)',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.5,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <VpnKeyOutlinedIcon sx={{ color: '#ffd21f', fontSize: 18 }} />
+                      <Typography sx={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 700 }}>
+                        GitHub Personal Access Token (PAT)
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ color: '#64748b', fontSize: '0.72rem' }}>
+                      Scope required: <strong>repo</strong> (classic) or <strong>Contents: Read</strong> (fine-grained)
+                    </Typography>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      background: 'rgba(6, 6, 9, 0.9)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: '10px',
+                      px: 2,
+                      py: 0.5,
+                      transition: 'all 0.2s ease',
+                      '&:focus-within': {
+                        borderColor: '#ffd21f',
+                        boxShadow: '0 0 16px rgba(255, 210, 31, 0.2)',
+                      },
+                    }}
+                  >
+                    <TextField
+                      {...register('token')}
+                      fullWidth
+                      variant="standard"
+                      type={showToken ? 'text' : 'password'}
+                      placeholder="ghp_xxxxxxxxxxxxxxxxxxxx or github_pat_xxxxxxxx"
+                      disabled={isAnalysing}
+                      value={tokenValue}
+                      onChange={(e) => {
+                        setTokenValue(e.target.value);
+                        setValue('token', e.target.value);
+                      }}
+                      slotProps={{
+                        input: {
+                          disableUnderline: true,
+                          sx: {
+                            color: '#ffffff',
+                            fontSize: '0.85rem',
+                            fontFamily: 'monospace',
+                            '& input::placeholder': { color: '#64748b', opacity: 1, fontFamily: 'inherit' },
+                          },
+                        },
+                      }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowToken(!showToken)}
+                      sx={{ color: '#94a3b8', ml: 1, '&:hover': { color: '#ffffff' } }}
+                      title={showToken ? 'Hide token' : 'Show token'}
+                    >
+                      {showToken ? <VisibilityOffIcon sx={{ fontSize: 18 }} /> : <VisibilityIcon sx={{ fontSize: 18 }} />}
+                    </IconButton>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={rememberToken}
+                          onChange={(e) => setRememberToken(e.target.checked)}
+                          sx={{
+                            color: '#64748b',
+                            p: 0.5,
+                            '&.Mui-checked': { color: '#ffd21f' },
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography sx={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                          Remember token on this browser
+                        </Typography>
+                      }
+                    />
+                    <Typography sx={{ color: '#64748b', fontSize: '0.72rem' }}>
+                      Token is used exclusively for cloning and is never logged or exposed.
+                    </Typography>
+                  </Box>
+                </Box>
+              </Collapse>
             </Box>
-            {errors.url && (
-              <Typography sx={{ color: '#ef5350', fontSize: '0.8rem', mt: -1.5, mb: 2, ml: 1 }}>
-                {errors.url.message}
-              </Typography>
-            )}
 
             {/* Popular Repos Quick Suggestions */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexWrap: 'wrap' }}>

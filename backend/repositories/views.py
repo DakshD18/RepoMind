@@ -41,6 +41,7 @@ class AnalyseRepositoryView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         url = serializer.validated_data['url']
+        token = serializer.validated_data.get('token', '').strip() or None
 
         try:
             owner, name = _parse_github_url(url)
@@ -65,7 +66,7 @@ class AnalyseRepositoryView(APIView):
 
         try:
             # Clone and extract metadata
-            git_repo = clone_repository(url, target_dir)
+            git_repo = clone_repository(url, target_dir, token=token)
             metadata = extract_metadata(target_dir, git_repo)
 
             # Parse last commit date
