@@ -7,6 +7,7 @@ query parameter validation, intelligent persistent caching, and pagination.
 
 import logging
 import math
+import threading
 from typing import Any, Dict, Optional
 
 from rest_framework import status
@@ -22,6 +23,9 @@ from productivity.services.analytics import calculate_productivity_analytics
 from productivity.services.ai_insights import generate_productivity_insights
 
 logger = logging.getLogger(__name__)
+
+_INDEXING_LOCK = threading.Lock()
+_INDEXING_REPOS: set = set()
 
 
 def _get_user_repository(pk: int, user) -> Optional[Repository]:
@@ -46,13 +50,23 @@ def _get_or_compute_analytics(
     """
     total_commits = CommitMemory.objects.filter(repository=repository).count()
     if total_commits == 0 and not force_refresh:
-        try:
-            from memory.services import index_commit_history
-            new_c = index_commit_history(repository, incremental=True)
-            if new_c > 0:
-                total_commits = CommitMemory.objects.filter(repository=repository).count()
-        except Exception as exc:
-            logger.warning("Auto-sync commit history for repo %d: %s", repository.id, exc)
+        should_index = False
+        with _INDEXING_LOCK:
+            if repository.id not in _INDEXING_REPOS:
+                _INDEXING_REPOS.add(repository.id)
+                should_index = True
+
+        if should_index:
+            try:
+                from memory.services import index_commit_history
+                new_c = index_commit_history(repository, incremental=True)
+                if new_c > 0:
+                    total_commits = CommitMemory.objects.filter(repository=repository).count()
+            except Exception as exc:
+                logger.warning("Auto-sync commit history for repo %d: %s", repository.id, exc)
+            finally:
+                with _INDEXING_LOCK:
+                    _INDEXING_REPOS.discard(repository.id)
 
     latest_commit = CommitMemory.objects.filter(repository=repository).order_by('-committed_date').first()
     latest_commit_dt = latest_commit.committed_date if latest_commit else None

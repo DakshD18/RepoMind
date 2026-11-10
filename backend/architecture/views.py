@@ -8,6 +8,7 @@ Follows Django REST Framework conventions:
 """
 
 from pathlib import Path
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -40,7 +41,13 @@ class ArchitectureOverviewView(APIView):
         if err:
             return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
 
+        cache_key = f"arch_overview_{repo.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
         overview = get_architecture_overview(repo, repo_dir)
+        cache.set(cache_key, overview, timeout=3600)
         return Response(overview, status=status.HTTP_200_OK)
 
 
@@ -59,14 +66,21 @@ class ArchitectureTreeView(APIView):
             return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
 
         search_query = request.query_params.get('search', '').strip()
+        cache_key = f"arch_tree_{repo.id}_{search_query}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
         graph = build_dependency_graph(repo.id, repo_dir)
         tree = build_architecture_tree(repo_dir, graph, search_query=search_query)
 
-        return Response({
+        data = {
             'repo_id': repo.id,
             'total_files': len(graph.all_files),
             'tree': tree,
-        }, status=status.HTTP_200_OK)
+        }
+        cache.set(cache_key, data, timeout=3600)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class ArchitectureGraphView(APIView):
@@ -92,7 +106,12 @@ class ArchitectureGraphView(APIView):
 
         view_type = request.query_params.get('view_type', 'files')
         if view_type == 'modules':
+            cache_key = f"arch_modules_graph_{repo.id}"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached, status=status.HTTP_200_OK)
             data = extract_module_graph(repo, repo_dir)
+            cache.set(cache_key, data, timeout=3600)
             return Response(data, status=status.HTTP_200_OK)
 
         module_filter = request.query_params.get('module')
@@ -180,5 +199,11 @@ class ArchitectureFindingsView(APIView):
         if err:
             return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
 
+        cache_key = f"arch_findings_{repo.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
         findings = detect_architecture_findings(repo, repo_dir)
+        cache.set(cache_key, findings, timeout=3600)
         return Response(findings, status=status.HTTP_200_OK)

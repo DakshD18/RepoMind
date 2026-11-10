@@ -356,6 +356,7 @@ def handle_chat(
         answer=raw_answer,
         context_chunks=chunks,
         query_type=query_type,
+        repository_id=repository_id,
     )
 
     # ── 9. Format sources (only for validated answers) ────────────────────────

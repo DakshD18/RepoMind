@@ -130,6 +130,9 @@ if DATABASE_URL:
             'default': {
                 'ENGINE': 'django.db.backends.sqlite3',
                 'NAME': BASE_DIR / 'db.sqlite3',
+                'OPTIONS': {
+                    'timeout': 30,
+                },
             }
         }
 elif _DB_NAME:
@@ -149,8 +152,19 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'OPTIONS': {
+                'timeout': 30,
+            },
         }
     }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'repomind-cache',
+        'TIMEOUT': 3600,
+    }
+}
 
 
 # Django REST Framework

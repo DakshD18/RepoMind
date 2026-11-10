@@ -107,9 +107,8 @@ _COMMON_WORDS = {
     'handle', 'handles', 'handled', 'handling', 'handler', 'handlers',
     'generate', 'generates', 'generated', 'generating', 'generation', 'generat',
     'function', 'functions', 'class', 'classes', 'method', 'methods',
-    'file', 'files', 'module', 'modules', 'endpoint', 'endpoints', 'route', 'routes',
-    'view', 'views', 'model', 'models', 'service', 'services', 'component', 'components',
-    'page', 'pages', 'code', 'logic', 'work', 'works', 'working',
+    'file', 'files', 'module', 'modules',
+    'page', 'pages', 'work', 'works', 'working',
     'should', 'return', 'returns', 'returning',
     'repository', 'repo', 'project', 'application', 'app', 'system', 'data',
     'the', 'and', 'for', 'not', 'but', 'are', 'was', 'were', 'been',
@@ -123,10 +122,10 @@ _COMMON_WORDS = {
 _FRAME_WORDS = {
     'where', 'is', 'the', 'what', 'does', 'how', 'when', 'who', 'why', 'did',
     'it', 'and', 'in', 'which', 'commit', 'commits', 'explain', 'all', 'of',
-    'this', 'project', 'repo', 'repository', 'code', 'file', 'files', 'for',
+    'this', 'project', 'repo', 'repository', 'file', 'files', 'for',
     'are', 'can', 'you', 'tell', 'me', 'about', 'used', 'uses', 'using',
     'implementation', 'implemented', 'handled', 'handling', 'defined',
-    'main', 'core', 'present', 'logic', 'business', 'codebase', 'primary',
+    'main', 'core', 'present', 'business', 'codebase', 'primary',
     'thid', 'teh',
     # Temporal & grammatical framing words
     'was', 'were', 'been', 'had', 'has', 'have', 'last', 'latest', 'recent',
@@ -141,7 +140,13 @@ CONCEPT_SYNONYMS: dict[str, set[str]] = {
     'auth': {'authentication', 'login', 'logout', 'signin', 'signup', 'session', 'password', 'credential', 'token', 'jwt', 'oauth', 'checklogin'},
     'login': {'auth', 'authentication', 'signin', 'session', 'password', 'credential', 'checklogin'},
     'database': {'db', 'sql', 'model', 'models', 'schema', 'migration', 'query', 'table', 'mysql', 'postgres', 'sqlite'},
-    'api': {'endpoint', 'endpoints', 'route', 'routes', 'controller', 'controllers', 'view', 'views', 'rest', 'handler'},
+    'api': {'endpoint', 'endpoints', 'route', 'routes', 'controller', 'controllers', 'view', 'views', 'rest', 'handler', 'urls'},
+    'endpoint': {'endpoints', 'route', 'routes', 'api', 'urls', 'url', 'views', 'view', 'controller', 'controllers', 'handler', 'handlers', 'path'},
+    'endpoints': {'endpoint', 'route', 'routes', 'api', 'urls', 'url', 'views', 'view', 'controller', 'controllers', 'handler', 'handlers', 'path'},
+    'route': {'routes', 'endpoint', 'endpoints', 'api', 'urls', 'url', 'views', 'view', 'controller', 'controllers'},
+    'routes': {'route', 'endpoint', 'endpoints', 'api', 'urls', 'url', 'views', 'view', 'controller', 'controllers'},
+    'parsing': {'parse', 'parser', 'parsing', 'ast', 'analyzer', 'analysis', 'extract', 'extractor', 'schema', 'tree', 'scanner', 'engine'},
+    'parse': {'parsing', 'parser', 'ast', 'analyzer', 'analysis', 'extract', 'extractor', 'schema', 'engine'},
 }
 
 
@@ -305,12 +310,12 @@ _CONFIGURATION_PHRASES = re.compile(
 )
 
 _API_PHRASES = re.compile(
-    r'\b(which api|what api|api endpoint|endpoints?|rest api|api for|route|routes|http (methods?|requests?))\b',
+    r'\b(which\s+api|what\s+api|apis?|api\s*endpoints?|end\s*points?|all\s+endpoints?|all\s+end\s*points?|rest\s*apis?|api\s*for|routes?|api\s*routes?|http\s*(methods?|requests?)|list\s*(all\s*)?(the\s*)?(end\s*points?|routes?|apis?)|give\s*(me\s*)?(all\s*)?(the\s*)?(end\s*points?|routes?|apis?))\b',
     re.IGNORECASE,
 )
 
 _IMPLEMENTATION_PHRASES = re.compile(
-    r'\b(implemented|implementation|handling|generate[sd]?|generating|generation|'
+    r'\b(logic|parsing|parse|parser|analyz(e|ing|er|is)|process(ing)?|pipeline|implemented|implementation|handling|generate[sd]?|generating|generation|'
     r'create[sd]?|creating|creation|issue[sd]?|issuing|sign(ed|ing)?|encode[sd]?|encoding)\b',
     re.IGNORECASE,
 )
@@ -373,12 +378,14 @@ def detect_query_type(query: str) -> str:
     if extract_routes(query):
         return QueryType.ROUTE
 
-    # 11. Implementation
+    # 11. Implementation / logic queries
     if _IMPLEMENTATION_PHRASES.search(query):
         return QueryType.IMPLEMENTATION
 
-    # 12. Identifier lookup (only when specifically asking to find an identifier or symbol)
-    if _IDENTIFIER_PHRASES.search(query) and extract_identifiers(query):
+    # 12. Identifier lookup (only when specifically asking to find a specific symbol/identifier)
+    # If the user is asking about logic, code, mechanism, or process, do NOT treat as identifier lookup
+    is_conceptual = any(w in q_lower for w in ('logic', 'code', 'how', 'process', 'pipeline', 'parsing', 'flow', 'work', 'endpoint', 'route', 'api'))
+    if not is_conceptual and _IDENTIFIER_PHRASES.search(query) and extract_identifiers(query):
         return QueryType.IDENTIFIER
 
     return QueryType.GENERAL
@@ -604,9 +611,9 @@ def _score_intent(chunk: dict, query_type: str, core_entities: set[str]) -> floa
             return 0.40
         return 0.0
 
-    if query_type == QueryType.API:
+    if query_type in (QueryType.API, QueryType.ROUTE):
         if any(k in fp for k in ['views', 'routes', 'controllers', 'endpoints', 'api', 'urls']):
-            return 0.35
+            return 0.45
         return 0.0
 
     return 0.0
@@ -702,6 +709,12 @@ def evaluate_relevance(
                 return True, None
         if (fn.startswith(('server.', 'app.', 'main.')) or fn in ('index.js', 'index.ts')) and fp.endswith(('.py', '.js', '.ts', '.php', '.go')):
             return True, None
+
+    # 4b. API / Route queries: URLs, route definitions, controllers, and views PASS
+    if query_type in (QueryType.API, QueryType.ROUTE):
+        if any(k in fp for k in ['urls.py', 'routes', 'endpoints', 'controllers', 'views.py', 'views/', 'api/']):
+            if not fp.endswith(('.css', '.scss', '.less', '.html', '.svg', '.json', '.map')):
+                return True, None
 
     # 5. Identifier queries: require identifier match or path match or strong keyword overlap
     if query_type == QueryType.IDENTIFIER:
@@ -826,6 +839,26 @@ def rerank(
                     final = max(final, 0.45 + sem_score * 0.35)
                 elif (fn.startswith(('server.', 'app.', 'main.')) or fn in ('index.js', 'index.ts')) and fp_lower.endswith(('.py', '.js', '.ts', '.php', '.go')):
                     final = max(final, 0.40 + sem_score * 0.30)
+
+        # API / Route query boost
+        if query_type in (QueryType.API, QueryType.ROUTE):
+            fp_lower = chunk.get('file_path', '').lower()
+            fn = fp_lower.rsplit('/', 1)[-1]
+            if not fp_lower.endswith(('.css', '.scss', '.less', '.sass', '.html', '.svg', '.json', '.map')):
+                if fn in ('urls.py', 'routes.py', 'routes.js', 'routes.ts') or 'routes/' in fp_lower or 'endpoints/' in fp_lower:
+                    final = max(final, 0.85 + sem_score * 0.15)
+                elif any(k in fp_lower for k in ['controllers', 'endpoints', 'views.py', 'views/', 'api/']):
+                    if fp_lower.endswith(('.py', '.go', '.java', '.ts', '.js')) and not any(k in fp_lower for k in ['frontend', 'components', 'src/components']):
+                        final = max(final, 0.70 + sem_score * 0.20)
+                    else:
+                        final = max(final, 0.45 + sem_score * 0.20)
+
+        # Implementation query boost for matching concepts
+        if query_type == QueryType.IMPLEMENTATION:
+            chunk_tokens = _tokenize(chunk.get('content', '')) | _tokenize(chunk.get('file_path', '')) | _tokenize(chunk.get('symbol_name', ''))
+            expanded_entities = expand_concept_synonyms(core_entities) if core_entities else set()
+            if expanded_entities and (expanded_entities & chunk_tokens):
+                final = max(final, 0.45 + sem_score * 0.35 + kw_score * 0.20)
 
         # History query prioritization
         if query_type == QueryType.HISTORY:

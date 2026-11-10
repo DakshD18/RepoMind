@@ -36,6 +36,22 @@ const api = axios.create({
   },
 });
 
+// Deduplicate simultaneous identical GET requests so they execute once only
+const originalGet = api.get.bind(api);
+const inFlightGet = new Map<string, Promise<any>>();
+
+api.get = ((url: string, config?: any) => {
+  const key = `${url}?${JSON.stringify(config?.params || {})}`;
+  if (inFlightGet.has(key)) {
+    return inFlightGet.get(key)!;
+  }
+  const promise = originalGet(url, config).finally(() => {
+    inFlightGet.delete(key);
+  });
+  inFlightGet.set(key, promise);
+  return promise;
+}) as any;
+
 // Attach JWT token to every request // An interceptor is code that runs 
 // before every request
 

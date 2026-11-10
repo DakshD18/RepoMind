@@ -79,6 +79,7 @@ export const ProductivityDashboard: React.FC = () => {
 
   // Filter state
   const [timeRange, setTimeRange] = useState<string>('30d');
+  const [hasAutoSwitchedRange, setHasAutoSwitchedRange] = useState<boolean>(false);
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
   const [aggregation, setAggregation] = useState<string>('daily');
@@ -153,6 +154,19 @@ export const ProductivityDashboard: React.FC = () => {
 
       setOverviewData(ovData);
       setTimeline(actData.timeline || []);
+
+      // If initial 30d range has 0 commits but repository has stored commits:
+      // Auto-switch to 'all' so the user immediately sees all repository data
+      if (
+        !hasAutoSwitchedRange &&
+        timeRange === '30d' &&
+        ovData?.overview?.total_commits === 0 &&
+        (ovData?.data_availability?.total_stored_commits || 0) > 0
+      ) {
+        setHasAutoSwitchedRange(true);
+        setTimeRange('all');
+        return;
+      }
     } catch (err: any) {
       console.error('Failed loading productivity analytics:', err);
       const errorMsg =
@@ -528,6 +542,55 @@ export const ProductivityDashboard: React.FC = () => {
                   {overviewData.data_availability.limitations_note} Activity data reflects repository commit history, not developer evaluation.
                 </Typography>
               </Box>
+            )}
+
+            {/* Zero commits in filtered range notice */}
+            {overviewData && (overviewData.data_availability?.total_stored_commits || 0) > 0 && overviewData.overview.total_commits === 0 && (
+              <Card
+                sx={{
+                  p: 2.5,
+                  mt: 2.5,
+                  mb: 1,
+                  background: 'rgba(255, 210, 31, 0.07)',
+                  border: '1px solid rgba(255, 210, 31, 0.3)',
+                  borderRadius: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <InfoOutlinedIcon sx={{ color: YELLOW_ACCENT, fontSize: 26 }} />
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#FFFFFF' }}>
+                      No commits recorded in the selected {timeRange.toUpperCase()} window
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#A1A1AA' }}>
+                      This repository has {overviewData.data_availability.total_stored_commits} commits. The latest commit was on{' '}
+                      {overviewData.data_availability.latest_commit_date
+                        ? new Date(overviewData.data_availability.latest_commit_date).toLocaleDateString(undefined, { dateStyle: 'medium' })
+                        : 'an earlier date'}.
+                    </Typography>
+                  </Box>
+                </Box>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => setTimeRange('all')}
+                  sx={{
+                    background: YELLOW_ACCENT,
+                    color: '#000000',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    '&:hover': { background: '#E6BD1C' },
+                  }}
+                >
+                  View All History ({overviewData.data_availability.total_stored_commits} Commits)
+                </Button>
+              </Card>
             )}
 
             {/* Zero commits empty-state notice */}

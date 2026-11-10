@@ -204,20 +204,24 @@ def _apply_pgvector_column(repository) -> None:
 
 def _extract_search_tokens(query: str) -> list[str]:
     """Tokenize query for keyword search; strips common English stopwords and expands concept synonyms."""
+    # Normalize spaced or common variations before tokenization
+    norm_query = re.sub(r'\bend\s+points?\b', 'endpoint', query, flags=re.IGNORECASE)
+    norm_query = re.sub(r'\brest\s+apis?\b', 'api', norm_query, flags=re.IGNORECASE)
+    norm_query = re.sub(r'\bapi\s+endpoints?\b', 'endpoint', norm_query, flags=re.IGNORECASE)
+
     _STOP = {
         'where', 'what', 'which', 'how', 'when', 'why', 'does', 'this', 'that', 'with',
         'from', 'into', 'used', 'using', 'use', 'uses',
         'defined', 'define', 'defines', 'defining', 'definition',
         'created', 'create', 'creates', 'creating', 'creation',
         'called', 'call', 'calls', 'calling',
-        'find', 'show', 'list', 'explain', 'describe',
+        'find', 'show', 'list', 'explain', 'describe', 'give', 'tell', 'me',
         'implement', 'implemented', 'implementing', 'implementation', 'implementations',
         'handle', 'handles', 'handled', 'handling', 'handler', 'handlers',
         'generate', 'generates', 'generated', 'generating', 'generation', 'generat',
         'function', 'functions', 'class', 'classes', 'method', 'methods',
-        'file', 'files', 'module', 'modules', 'endpoint', 'endpoints', 'route', 'routes',
-        'view', 'views', 'model', 'models', 'service', 'services', 'component', 'components',
-        'page', 'pages', 'code', 'logic', 'work', 'works', 'working',
+        'file', 'files', 'module', 'modules',
+        'page', 'pages', 'work', 'works', 'working',
         'should', 'return', 'returns', 'returning',
         'repository', 'repo', 'project', 'application', 'app', 'system', 'data',
         'the', 'and', 'for', 'not', 'but', 'are', 'was', 'were', 'been',
@@ -226,7 +230,7 @@ def _extract_search_tokens(query: str) -> list[str]:
     }
 
     tokens = set()
-    for m in re.finditer(r'[a-zA-Z_][a-zA-Z0-9_]{2,}', query):
+    for m in re.finditer(r'[a-zA-Z_][a-zA-Z0-9_]{2,}', norm_query):
         w = m.group(0).lower()
         if w not in _STOP:
             tokens.add(w)
@@ -372,6 +376,17 @@ def _search_structural_candidates(repository_id: int, query: str, limit: int = 2
             Q(file_path__icontains='api/') |
             Q(file_path__icontains='admin-panel')
         )
+    elif q_type in (QueryType.API, QueryType.ROUTE):
+        struct_q = (
+            Q(file_path__icontains='urls.py') |
+            Q(file_path__icontains='routes') |
+            Q(file_path__icontains='endpoints') |
+            Q(file_path__icontains='controllers') |
+            Q(file_path__icontains='views.py') |
+            Q(file_path__icontains='views/') |
+            Q(file_path__icontains='api/') |
+            Q(file_path__icontains='router')
+        )
     elif q_type == QueryType.IMPLEMENTATION:
         from rag.reranker import extract_core_entities
         entities = extract_core_entities(query)
@@ -416,10 +431,15 @@ def _search_structural_candidates(repository_id: int, query: str, limit: int = 2
         return results
 
     # Exclude binaries, stylesheets, font files, and test/skill dirs from structural injection
+    exclude_pattern = (
+        r'\.(ctg\.z|z|otf|ttf|woff|woff2|eot|icc|ai|fdf|css|scss|less|map)$'
+        if q_type == QueryType.OVERVIEW
+        else r'\.(ctg\.z|z|otf|ttf|woff|woff2|eot|icc|ai|fdf|css|scss|less|map|md)$'
+    )
     qs = (
         CodeChunk.objects
         .filter(base_filter & struct_q)
-        .exclude(file_path__iregex=r'\.(ctg\.z|z|otf|ttf|woff|woff2|eot|icc|ai|fdf|css|scss|less|map|md)$')
+        .exclude(file_path__iregex=exclude_pattern)
         .exclude(file_path__icontains='skill-creator/')
         .exclude(file_path__icontains='.agents/')
         .values('id', 'file_path', 'symbol_name', 'class_name',
